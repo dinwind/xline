@@ -44,6 +44,7 @@ export interface ExtensionState {
 	browserSettings: BrowserSettings
 	remoteBrowserHost?: string
 	preferredLanguage?: string
+	instructionSystem?: "cokodo" | "cline" | "both"
 	mode: Mode
 	clineMessages: ClineMessage[]
 	checkpointRestoreInput?: {

@@ -2,6 +2,9 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import {
 	AGENTS_RULES_FILE_NAME,
+	DEFAULT_INSTRUCTION_SYSTEM,
+	type InstructionSystem,
+	normalizeInstructionSystem,
 	RULES_CONFIG_DIRECTORY_NAME,
 	resolveGlobalAgentsRulesPath,
 	resolveRulesConfigSearchPaths as resolveRulesConfigSearchPathsFromShared,
@@ -87,16 +90,19 @@ export interface CreateSkillsConfigDefinitionOptions {
 	pluginSkillDirectories?: ReadonlyArray<string>;
 	pluginPaths?: ReadonlyArray<string>;
 	cwd?: string;
+	instructionSystem?: InstructionSystem;
 }
 
 export interface CreateRulesConfigDefinitionOptions {
 	directories?: ReadonlyArray<string>;
 	workspacePath?: string;
+	instructionSystem?: InstructionSystem;
 }
 
 export interface CreateWorkflowsConfigDefinitionOptions {
 	directories?: ReadonlyArray<string>;
 	workspacePath?: string;
+	instructionSystem?: InstructionSystem;
 }
 
 function normalizeName(name: string): string {
@@ -136,7 +142,10 @@ function resolveSkillDirectories(
 ): string[] {
 	const directories = [
 		...(options?.directories ??
-			resolveSkillsConfigSearchPaths(options?.workspacePath)),
+			resolveSkillsConfigSearchPaths(
+				options?.workspacePath,
+				options?.instructionSystem,
+			)),
 	];
 	if (options?.pluginSkillDirectories) {
 		directories.push(...options.pluginSkillDirectories);
@@ -360,20 +369,32 @@ export function parseWorkflowConfigFromMarkdown(
 
 export function resolveSkillsConfigSearchPaths(
 	workspacePath?: string,
+	instructionSystem?: InstructionSystem,
 ): string[] {
-	return resolveSkillsConfigSearchPathsFromShared(workspacePath);
+	return resolveSkillsConfigSearchPathsFromShared(
+		workspacePath,
+		normalizeInstructionSystem(instructionSystem),
+	);
 }
 
 export function resolveRulesConfigSearchPaths(
 	workspacePath?: string,
+	instructionSystem?: InstructionSystem,
 ): string[] {
-	return resolveRulesConfigSearchPathsFromShared(workspacePath);
+	return resolveRulesConfigSearchPathsFromShared(
+		workspacePath,
+		normalizeInstructionSystem(instructionSystem),
+	);
 }
 
 export function resolveWorkflowsConfigSearchPaths(
 	workspacePath?: string,
+	instructionSystem?: InstructionSystem,
 ): string[] {
-	return resolveWorkflowsConfigSearchPathsFromShared(workspacePath);
+	return resolveWorkflowsConfigSearchPathsFromShared(
+		workspacePath,
+		normalizeInstructionSystem(instructionSystem),
+	);
 }
 
 async function discoverSkillFiles(
@@ -546,7 +567,10 @@ export function createRulesConfigDefinition(
 ): UnifiedConfigDefinition<"rule", RuleConfig> {
 	const directories =
 		options?.directories ??
-		resolveRulesConfigSearchPaths(options?.workspacePath);
+		resolveRulesConfigSearchPaths(
+			options?.workspacePath,
+			options?.instructionSystem,
+		);
 	const managedRoot = options?.workspacePath
 		? join(options.workspacePath, ".cline")
 		: undefined;
@@ -573,7 +597,10 @@ export function createWorkflowsConfigDefinition(
 ): UnifiedConfigDefinition<"workflow", WorkflowConfig> {
 	const directories =
 		options?.directories ??
-		resolveWorkflowsConfigSearchPaths(options?.workspacePath);
+		resolveWorkflowsConfigSearchPaths(
+			options?.workspacePath,
+			options?.instructionSystem,
+		);
 	const managedRoot = options?.workspacePath
 		? join(options.workspacePath, ".cline")
 		: undefined;

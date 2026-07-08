@@ -10,10 +10,15 @@ import {
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import type { PluginManifest } from "..";
+import {
+	DEFAULT_INSTRUCTION_SYSTEM,
+	type InstructionSystem,
+} from "./instruction-system";
 
 const DEPRECATED_CONFIG_DIR = ".clinerules";
 const CLINE_CONFIG_DIR = ".cline";
 const LEGACY_AGENT_SKILLS_CONFIG_DIR = ".agents";
+export const AGENT_PROTOCOL_DIR = ".agent";
 
 export const AGENT_CONFIG_DIRECTORY_NAME = "agents";
 export const HOOKS_CONFIG_DIRECTORY_NAME = "hooks";
@@ -313,6 +318,111 @@ function dedupePaths(paths: ReadonlyArray<string>): string[] {
 	return deduped;
 }
 
+function mergeInstructionPaths(
+	cokodoPaths: ReadonlyArray<string>,
+	clinePaths: ReadonlyArray<string>,
+	instructionSystem: InstructionSystem = DEFAULT_INSTRUCTION_SYSTEM,
+): string[] {
+	switch (instructionSystem) {
+		case "cokodo":
+			return dedupePaths(cokodoPaths);
+		case "cline":
+			return dedupePaths(clinePaths);
+		case "both":
+			return dedupePaths([...cokodoPaths, ...clinePaths]);
+	}
+}
+
+function resolveClineRulesSearchPaths(workspacePath?: string): string[] {
+	const wsPaths = workspacePath
+		? [
+				join(workspacePath, DEPRECATED_CONFIG_DIR),
+				join(workspacePath, CLINE_CONFIG_DIR, RULES_CONFIG_DIRECTORY_NAME),
+			]
+		: [];
+	const workspaceAgentsFile = workspacePath
+		? [join(workspacePath, AGENTS_RULES_FILE_NAME)]
+		: [];
+	return dedupePaths([
+		...workspaceAgentsFile,
+		...wsPaths,
+		resolveGlobalAgentsRulesPath(),
+		join(resolveClineDir(), RULES_CONFIG_DIRECTORY_NAME),
+		resolveDocumentsExtensionPath("Rules"),
+	]);
+}
+
+function resolveClineWorkflowsSearchPaths(workspacePath?: string): string[] {
+	return dedupePaths([
+		workspacePath
+			? join(workspacePath, ".clinerules", WORKFLOWS_CONFIG_DIRECTORY_NAME)
+			: "",
+		resolveDocumentsExtensionPath("Workflows"),
+		join(resolveClineDir(), WORKFLOWS_CONFIG_DIRECTORY_NAME),
+		workspacePath
+			? join(workspacePath, ".cline", WORKFLOWS_CONFIG_DIRECTORY_NAME)
+			: "",
+	]);
+}
+
+function resolveClineSkillsSearchPaths(workspacePath?: string): string[] {
+	return dedupePaths([
+		...getWorkspaceSkillDirectories(workspacePath),
+		join(resolveClineDir(), SKILLS_CONFIG_DIRECTORY_NAME),
+		join(
+			HOME_DIR,
+			LEGACY_AGENT_SKILLS_CONFIG_DIR,
+			SKILLS_CONFIG_DIRECTORY_NAME,
+		),
+	]);
+}
+
+/**
+ * Cokodo agent protocol paths for rules/context markdown.
+ */
+export function resolveCokodoRulesSearchPaths(
+	workspacePath?: string,
+): string[] {
+	if (!workspacePath) {
+		return [];
+	}
+	const agentRoot = join(workspacePath, AGENT_PROTOCOL_DIR);
+	return dedupePaths([
+		agentRoot,
+		join(agentRoot, "core"),
+		join(agentRoot, "project"),
+		join(agentRoot, "meta"),
+	]);
+}
+
+/**
+ * Cokodo agent protocol paths for workflows and SOPs.
+ */
+export function resolveCokodoWorkflowsSearchPaths(
+	workspacePath?: string,
+): string[] {
+	if (!workspacePath) {
+		return [];
+	}
+	const agentRoot = join(workspacePath, AGENT_PROTOCOL_DIR);
+	return dedupePaths([
+		join(agentRoot, "core", WORKFLOWS_CONFIG_DIRECTORY_NAME),
+		join(agentRoot, "project", "sop"),
+	]);
+}
+
+/**
+ * Cokodo agent protocol paths for skill modules.
+ */
+export function resolveCokodoSkillsSearchPaths(
+	workspacePath?: string,
+): string[] {
+	if (!workspacePath) {
+		return [];
+	}
+	return [join(workspacePath, AGENT_PROTOCOL_DIR, SKILLS_CONFIG_DIRECTORY_NAME)];
+}
+
 function getWorkspaceSkillDirectories(workspacePath?: string): string[] {
 	if (!workspacePath) {
 		return [];
@@ -357,16 +467,13 @@ export function resolveHooksConfigSearchPaths(
 
 export function resolveSkillsConfigSearchPaths(
 	workspacePath?: string,
+	instructionSystem: InstructionSystem = DEFAULT_INSTRUCTION_SYSTEM,
 ): string[] {
-	return dedupePaths([
-		...getWorkspaceSkillDirectories(workspacePath),
-		join(resolveClineDir(), SKILLS_CONFIG_DIRECTORY_NAME),
-		join(
-			HOME_DIR,
-			LEGACY_AGENT_SKILLS_CONFIG_DIR,
-			SKILLS_CONFIG_DIRECTORY_NAME,
-		),
-	]);
+	return mergeInstructionPaths(
+		resolveCokodoSkillsSearchPaths(workspacePath),
+		resolveClineSkillsSearchPaths(workspacePath),
+		instructionSystem,
+	);
 }
 
 export function resolveGlobalAgentsRulesPath(): string {
@@ -375,38 +482,24 @@ export function resolveGlobalAgentsRulesPath(): string {
 
 export function resolveRulesConfigSearchPaths(
 	workspacePath?: string,
+	instructionSystem: InstructionSystem = DEFAULT_INSTRUCTION_SYSTEM,
 ): string[] {
-	const wsPaths = workspacePath
-		? [
-				join(workspacePath, DEPRECATED_CONFIG_DIR),
-				join(workspacePath, CLINE_CONFIG_DIR, RULES_CONFIG_DIRECTORY_NAME),
-			]
-		: [];
-	const workspaceAgentsFile = workspacePath
-		? [join(workspacePath, AGENTS_RULES_FILE_NAME)]
-		: [];
-	return dedupePaths([
-		...workspaceAgentsFile,
-		...wsPaths,
-		resolveGlobalAgentsRulesPath(),
-		join(resolveClineDir(), RULES_CONFIG_DIRECTORY_NAME),
-		resolveDocumentsExtensionPath("Rules"),
-	]);
+	return mergeInstructionPaths(
+		resolveCokodoRulesSearchPaths(workspacePath),
+		resolveClineRulesSearchPaths(workspacePath),
+		instructionSystem,
+	);
 }
 
 export function resolveWorkflowsConfigSearchPaths(
 	workspacePath?: string,
+	instructionSystem: InstructionSystem = DEFAULT_INSTRUCTION_SYSTEM,
 ): string[] {
-	return dedupePaths([
-		workspacePath
-			? join(workspacePath, ".clinerules", WORKFLOWS_CONFIG_DIRECTORY_NAME)
-			: "",
-		resolveDocumentsExtensionPath("Workflows"),
-		join(resolveClineDir(), WORKFLOWS_CONFIG_DIRECTORY_NAME),
-		workspacePath
-			? join(workspacePath, ".cline", WORKFLOWS_CONFIG_DIRECTORY_NAME)
-			: "",
-	]);
+	return mergeInstructionPaths(
+		resolveCokodoWorkflowsSearchPaths(workspacePath),
+		resolveClineWorkflowsSearchPaths(workspacePath),
+		instructionSystem,
+	);
 }
 
 export function resolvePluginConfigSearchPaths(

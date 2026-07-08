@@ -1,4 +1,4 @@
-import { VSCodeCheckbox, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeCheckbox, VSCodeDropdown, VSCodeLink, VSCodeOption } from "@vscode/webview-ui-toolkit/react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import PreferredLanguageSetting from "../PreferredLanguageSetting"
@@ -9,14 +9,42 @@ interface GeneralSettingsSectionProps {
 	renderSectionHeader: (tabId: string) => JSX.Element | null
 }
 
+const INSTRUCTION_SYSTEM_OPTIONS = [
+	{ value: "cokodo", label: "Cokodo Agent (.agent/)" },
+	{ value: "cline", label: "Cline (.clinerules / .cline)" },
+	{ value: "both", label: "Both (Cokodo first)" },
+] as const
+
 const GeneralSettingsSection = ({ renderSectionHeader }: GeneralSettingsSectionProps) => {
-	const { telemetrySetting, remoteConfigSettings } = useExtensionState()
+	const { telemetrySetting, remoteConfigSettings, instructionSystem } = useExtensionState()
 
 	return (
 		<div>
 			{renderSectionHeader("general")}
 			<Section>
 				<PreferredLanguageSetting />
+
+				<div className="mb-5">
+					<label className="block mb-2">Instruction system</label>
+					<VSCodeDropdown
+						className="w-full"
+						onChange={(e: Event) => {
+							const target = e.target as HTMLSelectElement
+							updateSetting("instructionSystem", target.value)
+						}}
+						value={instructionSystem ?? "cokodo"}>
+						{INSTRUCTION_SYSTEM_OPTIONS.map((option) => (
+							<VSCodeOption key={option.value} value={option.value}>
+								{option.label}
+							</VSCodeOption>
+						))}
+					</VSCodeDropdown>
+					<p className="text-sm mt-2 mb-0 text-description">
+						Choose where Axline loads rules, workflows, and skills. Cokodo uses the project <code>.agent/</code>{" "}
+						protocol. Cline uses legacy <code>.clinerules</code> and <code>.cline</code> paths. Both merges them with
+						Cokodo taking priority.
+					</p>
+				</div>
 
 				<div className="mb-[5px]">
 					<Tooltip>

@@ -1,6 +1,7 @@
 export { resolveExistingFilePath } from "./path-resolution";
 export {
 	AGENT_CONFIG_DIRECTORY_NAME,
+	AGENT_PROTOCOL_DIR,
 	AGENTS_RULES_FILE_NAME,
 	CLINE_CONNECTOR_SETTINGS_FILE_NAME,
 	CLINE_MCP_SETTINGS_FILE_NAME,
@@ -19,7 +20,9 @@ export {
 	resolveClineDir,
 	resolveConfiguredPluginModulePaths,
 	resolveConnectorDataDir,
-	resolveConnectorSettingsPath,
+	resolveCokodoRulesSearchPaths,
+	resolveCokodoSkillsSearchPaths,
+	resolveCokodoWorkflowsSearchPaths,
 	resolveCronDbPath,
 	resolveCronEventsDir,
 	resolveCronReportsDir,
@@ -48,3 +51,10 @@ export {
 	setHomeDirIfUnset,
 	WORKFLOWS_CONFIG_DIRECTORY_NAME,
 } from "./paths";
+export {
+	DEFAULT_INSTRUCTION_SYSTEM,
+	type InstructionSystem,
+	INSTRUCTION_SYSTEMS,
+	isInstructionSystem,
+	normalizeInstructionSystem,
+} from "./instruction-system";

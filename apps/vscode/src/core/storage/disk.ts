@@ -37,6 +37,12 @@ export const GlobalFileNames = {
 	cursorRulesFile: ".cursorrules",
 	windsurfRules: ".windsurfrules",
 	agentsRulesFile: "AGENTS.md",
+	agentProtocolDir: ".agent",
+	agentProjectDir: ".agent/project",
+	agentCoreDir: ".agent/core",
+	agentWorkflowsDir: ".agent/core/workflows",
+	agentSopDir: ".agent/project/sop",
+	agentSkillsDir: ".agent/skills",
 	taskMetadata: "task_metadata.json",
 	remoteConfig: (orgId: string) => `remote_config_${orgId}.json`,
 }

@@ -193,15 +193,34 @@ describe("storage path resolution", () => {
 		process.env.CLINE_DIR = "/tmp/home/.cline";
 		process.env.CLINE_DATA_DIR = "/tmp/home/.cline/data";
 
-		expect(resolveRulesConfigSearchPaths()).toEqual(
+		expect(resolveRulesConfigSearchPaths(undefined, "cline")).toEqual(
 			expect.arrayContaining([
 				resolveGlobalAgentsRulesPath(),
 				join("/tmp/home", ".cline", RULES_CONFIG_DIRECTORY_NAME),
 			]),
 		);
-		expect(resolveRulesConfigSearchPaths()).not.toContain(
+		expect(resolveRulesConfigSearchPaths(undefined, "cline")).not.toContain(
 			join("/tmp/home", ".cline", "data", RULES_CONFIG_DIRECTORY_NAME),
 		);
+	});
+
+	it("resolves cokodo rules paths when instruction system is cokodo", () => {
+		const workspacePath = "/repo/demo";
+		expect(resolveRulesConfigSearchPaths(workspacePath, "cokodo")).toEqual([
+			join(workspacePath, ".agent"),
+			join(workspacePath, ".agent", "core"),
+			join(workspacePath, ".agent", "project"),
+			join(workspacePath, ".agent", "meta"),
+		]);
+	});
+
+	it("prefers cokodo paths before cline paths in both mode", () => {
+		snapshot = captureEnv();
+		process.env.CLINE_DIR = "/tmp/home/.cline";
+		const workspacePath = "/repo/demo";
+		const paths = resolveRulesConfigSearchPaths(workspacePath, "both");
+		expect(paths[0]).toBe(join(workspacePath, ".agent"));
+		expect(paths).toContain(join(workspacePath, ".clinerules"));
 	});
 
 	it("resolves legacy and new workflow paths, with .cline paths later for duplicate-name precedence", () => {
@@ -209,7 +228,7 @@ describe("storage path resolution", () => {
 		process.env.CLINE_DIR = "/tmp/home/.cline";
 		const workspacePath = "/repo/demo";
 
-		const paths = resolveWorkflowsConfigSearchPaths(workspacePath);
+		const paths = resolveWorkflowsConfigSearchPaths(workspacePath, "cline");
 
 		expect(paths).toEqual([
 			join(workspacePath, ".clinerules", "workflows"),

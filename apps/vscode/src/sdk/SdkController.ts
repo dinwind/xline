@@ -705,14 +705,16 @@ export class Controller {
 		}
 		this.userInstructionServiceRoot = workspaceRoot
 		this.userInstructionService = (async () => {
+			const instructionSystem = this.stateManager.getGlobalSettingsKey("instructionSystem") ?? "cokodo"
 			const service = createUserInstructionConfigService({
-				workflows: { workspacePath: workspaceRoot },
+				workflows: { workspacePath: workspaceRoot, instructionSystem },
 				skills: {
 					workspacePath: workspaceRoot,
 					includePluginSkills: true,
 					cwd: workspaceRoot,
+					instructionSystem,
 				},
-				rules: { workspacePath: workspaceRoot },
+				rules: { workspacePath: workspaceRoot, instructionSystem },
 			})
 			// start() runs the initial scan; await so the snapshot is populated
 			// before the first resolveRuntimeSlashCommand call.

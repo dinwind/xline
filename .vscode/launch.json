@@ -16,6 +16,8 @@
 				"saoudrizwan.claude-dev", // Avoid conflicts with installed Cline
 				"--disable-extension",
 				"saoudrizwan.cline-nightly", // Avoid conflicts with installed Cline Nightly
+				"--disable-extension",
+				"axline.axline", // Avoid conflicts with installed Axline VSIX
 				"${workspaceFolder}/apps/vscode",
 				"--disable-extensions"
 			],
@@ -41,6 +43,8 @@
 				"saoudrizwan.claude-dev", // Avoid conflicts with installed Cline
 				"--disable-extension",
 				"saoudrizwan.cline-nightly", // Avoid conflicts with installed Cline Nightly
+				"--disable-extension",
+				"axline.axline", // Avoid conflicts with installed Axline VSIX
 				"${workspaceFolder}/apps/vscode"
 			],
 			"outFiles": [
@@ -65,6 +69,8 @@
 				"saoudrizwan.claude-dev", // Avoid conflicts with installed Cline
 				"--disable-extension",
 				"saoudrizwan.cline-nightly", // Avoid conflicts with installed Cline Nightly
+				"--disable-extension",
+				"axline.axline", // Avoid conflicts with installed Axline VSIX
 				"${workspaceFolder}/apps/vscode"
 			],
 			"outFiles": [
@@ -91,6 +97,8 @@
 				"saoudrizwan.claude-dev", // Avoid conflicts with installed Cline
 				"--disable-extension",
 				"saoudrizwan.cline-nightly", // Avoid conflicts with installed Cline Nightly
+				"--disable-extension",
+				"axline.axline", // Avoid conflicts with installed Axline VSIX
 				"--extensionDevelopmentPath=${workspaceFolder}/apps/vscode",
 				"${workspaceFolder}/apps/vscode"
 			],

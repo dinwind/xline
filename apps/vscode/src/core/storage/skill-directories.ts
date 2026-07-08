@@ -1,3 +1,4 @@
+import { DEFAULT_INSTRUCTION_SYSTEM, type InstructionSystem, normalizeInstructionSystem } from "@cline/shared/storage"
 import os from "os"
 import * as path from "path"
 
@@ -6,6 +7,7 @@ const SKILL_DIRECTORY_NAMES = {
 	clineSkillsDir: ".cline/skills",
 	claudeSkillsDir: ".claude/skills",
 	agentsSkillsDir: ".agents/skills",
+	agentSkillsDir: ".agent/skills",
 } as const
 
 export type SkillsScanDirectory = {
@@ -25,17 +27,46 @@ function getAgentSkillsDirectoryPath(): string {
 	return path.join(os.homedir(), ".agents", "skills")
 }
 
-/**
- * Returns the list of skills directories to scan without creating them.
- * Order is project directories first, then global directories.
- */
-export function getSkillsDirectoriesForScan(cwd: string): SkillsScanDirectory[] {
+function getCokodoProjectSkillDirectories(cwd: string): SkillsScanDirectory[] {
+	return [{ path: path.join(cwd, SKILL_DIRECTORY_NAMES.agentSkillsDir), source: "project" }]
+}
+
+function getClineProjectSkillDirectories(cwd: string): SkillsScanDirectory[] {
 	return [
 		{ path: path.join(cwd, SKILL_DIRECTORY_NAMES.clineruleSkillsDir), source: "project" },
 		{ path: path.join(cwd, SKILL_DIRECTORY_NAMES.clineSkillsDir), source: "project" },
 		{ path: path.join(cwd, SKILL_DIRECTORY_NAMES.claudeSkillsDir), source: "project" },
 		{ path: path.join(cwd, SKILL_DIRECTORY_NAMES.agentsSkillsDir), source: "project" },
+	]
+}
+
+function getClineGlobalSkillDirectories(): SkillsScanDirectory[] {
+	return [
 		{ path: getClineSkillsDirectoryPath(), source: "global" },
 		{ path: getAgentSkillsDirectoryPath(), source: "global" },
 	]
+}
+
+/**
+ * Returns the list of skills directories to scan without creating them.
+ * Order is project directories first, then global directories.
+ */
+export function getSkillsDirectoriesForScan(
+	cwd: string,
+	instructionSystem: InstructionSystem = DEFAULT_INSTRUCTION_SYSTEM,
+): SkillsScanDirectory[] {
+	const system = normalizeInstructionSystem(instructionSystem)
+
+	switch (system) {
+		case "cokodo":
+			return getCokodoProjectSkillDirectories(cwd)
+		case "cline":
+			return [...getClineProjectSkillDirectories(cwd), ...getClineGlobalSkillDirectories()]
+		case "both":
+			return [
+				...getCokodoProjectSkillDirectories(cwd),
+				...getClineProjectSkillDirectories(cwd),
+				...getClineGlobalSkillDirectories(),
+			]
+	}
 }

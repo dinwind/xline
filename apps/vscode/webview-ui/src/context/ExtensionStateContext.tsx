@@ -274,6 +274,7 @@ export const ExtensionStateContextProvider: React.FC<{
 		autoApprovalSettings: DEFAULT_AUTO_APPROVAL_SETTINGS,
 		browserSettings: DEFAULT_BROWSER_SETTINGS,
 		preferredLanguage: "English",
+		instructionSystem: "cokodo",
 		mode: "act",
 		platform: DEFAULT_PLATFORM,
 		environment: Environment.production,

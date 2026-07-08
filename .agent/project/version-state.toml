@@ -1,0 +1,40 @@
+# Machine-readable version governance state.
+# Human-readable policy lives in `project/versioning.md`.
+
+schema_version = 1
+updated_at = "[DATE]"
+owner = "release-governance"
+
+[tracks.primary]
+enabled = true
+display_name = "Primary Product"
+canonical_source = "[path/to/canonical-version-source]"
+derived_sync = [
+  "[path/to/derived-version-file]",
+]
+current_release = "0.1.0"
+working_version = "0.1.1"
+status = "developing"
+release_note = "docs/operations/primary-release-note-0.1.1.md"
+tag = "primary/v0.1.1"
+rollback_tag = "primary/v0.1.0"
+protocol = ""
+compatibility = []
+scope_refs = []
+
+# Optional additional track example:
+#
+# [tracks.secondary]
+# enabled = true
+# display_name = "Secondary Product"
+# canonical_source = "[path/to/canonical-version-source]"
+# derived_sync = []
+# current_release = "0.1.0"
+# working_version = "0.1.0"
+# status = "planning"
+# release_note = "docs/operations/secondary-release-note-0.1.0.md"
+# tag = "secondary/v0.1.0"
+# rollback_tag = ""
+# protocol = ""
+# compatibility = []
+# scope_refs = []

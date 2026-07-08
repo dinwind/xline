@@ -58,7 +58,7 @@ describe("user instruction config loader", () => {
 				join(workspacePath, ".agents", "skills"),
 			]),
 		);
-		expect(resolveRulesConfigSearchPaths(workspacePath)).toEqual(
+		expect(resolveRulesConfigSearchPaths(workspacePath, "cline")).toEqual(
 			expect.arrayContaining([
 				join(workspacePath, "AGENTS.md"),
 				join(workspacePath, ".clinerules"),
@@ -66,11 +66,11 @@ describe("user instruction config loader", () => {
 			]),
 		);
 		expect(
-			resolveRulesConfigSearchPaths(workspacePath).some((path) =>
+			resolveRulesConfigSearchPaths(workspacePath, "cline").some((path) =>
 				path.endsWith(join(".agents", "AGENTS.md")),
 			),
 		).toBe(true);
-		const paths = resolveWorkflowsConfigSearchPaths(workspacePath);
+		const paths = resolveWorkflowsConfigSearchPaths(workspacePath, "cline");
 		expect(paths).toContain(join(workspacePath, ".clinerules", "workflows"));
 		expect(paths).toContain(join(workspacePath, ".cline", "workflows"));
 		expect(
