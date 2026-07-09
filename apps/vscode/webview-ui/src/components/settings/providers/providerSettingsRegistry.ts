@@ -10,6 +10,7 @@ const CUSTOM_PROVIDER_SETTINGS_IDS = new Set([
 	"aihubmix",
 	"anthropic",
 	"asksage",
+	"axgate",
 	"bedrock",
 	"claude-code",
 	"cline",

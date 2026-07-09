@@ -1,4 +1,5 @@
 import type { UserOrganization } from "@shared/proto/cline/account"
+import { AccountLoginRequest } from "@shared/proto/cline/account"
 import { EmptyRequest } from "@shared/proto/cline/common"
 import deepEqual from "fast-deep-equal"
 import type React from "react"
@@ -106,26 +107,33 @@ export const useClineAuth = () => {
 export const useClineSignIn = () => {
 	const [isLoading, setIsLoading] = useState(false)
 	const [authStatusMessage, setAuthStatusMessage] = useState<string | null>(null)
+	const [loginError, setLoginError] = useState<string | null>(null)
 
-	const handleSignIn = useCallback(() => {
+	const handleSignIn = useCallback((username: string, password: string) => {
 		try {
 			setIsLoading(true)
 			setAuthStatusMessage(null)
+			setLoginError(null)
 
-			AccountServiceClient.accountLoginClicked(EmptyRequest.create())
+			AccountServiceClient.accountLoginWithCredentials(
+				AccountLoginRequest.create({
+					username,
+					password,
+				}),
+			)
 				.then((response) => {
-					setAuthStatusMessage(response.value || "Complete sign-in in your browser.")
+					setAuthStatusMessage(response.value || "Signed in successfully.")
 				})
 				.catch((err) => {
-					console.error("Failed to start login:", err)
-					setAuthStatusMessage("Unable to start sign-in. Please try again.")
+					console.error("Failed to sign in:", err)
+					setLoginError(err?.message || "Unable to sign in. Please check your credentials and try again.")
 				})
 				.finally(() => {
 					setIsLoading(false)
 				})
 		} catch (error) {
 			console.error("Error signing in:", error)
-			setAuthStatusMessage("Unable to start sign-in. Please try again.")
+			setLoginError("Unable to sign in. Please try again.")
 			setIsLoading(false)
 		}
 	}, [])
@@ -133,6 +141,7 @@ export const useClineSignIn = () => {
 	return {
 		isLoginLoading: isLoading,
 		authStatusMessage,
+		loginError,
 		handleSignIn,
 	}
 }

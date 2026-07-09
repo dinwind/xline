@@ -154,6 +154,18 @@ export {
 	refreshOcaToken,
 } from "./auth/oca";
 export {
+	AXGATE_TOKEN_PREFIX,
+	DEFAULT_AXLINE_AUTH_APP_ID,
+	fetchAxgateSession,
+	formatAxgateApiKey,
+	getValidAxgateCredentials,
+	loginAxgate,
+	refreshAxgateSession,
+	stripAxgateTokenPrefix,
+	type AxgateAuthConfig,
+	type AxgateSessionResponse,
+} from "./auth/axgate";
+export {
 	formatProviderOAuthApiKey,
 	getPersistedProviderApiKey,
 	getProviderAuthHandler,

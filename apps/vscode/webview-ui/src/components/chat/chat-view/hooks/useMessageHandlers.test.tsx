@@ -39,10 +39,18 @@ vi.mock("@shared/proto/cline/common", () => ({
 
 // useExtensionState supplies turnState (+ backgroundCommandRunning) to the hook.
 let mockTurnState: TurnState | undefined
+let mockRequiresLogin = false
+const mockPromptLogin = vi.fn()
 vi.mock("@/context/ExtensionStateContext", () => ({
 	useExtensionState: () => ({
 		backgroundCommandRunning: false,
 		turnState: mockTurnState,
+	}),
+}))
+vi.mock("@/hooks/useAxgateLoginGate", () => ({
+	useAxgateLoginGate: () => ({
+		requiresLogin: mockRequiresLogin,
+		promptLogin: mockPromptLogin,
 	}),
 }))
 
@@ -103,6 +111,8 @@ describe("useMessageHandlers — send routing", () => {
 		trackIntent.mockReset()
 		trackIntent.mockResolvedValue(undefined)
 		mockTurnState = undefined
+		mockRequiresLogin = false
+		mockPromptLogin.mockReset()
 	})
 
 	it("routes /compact to the condense RPC instead of sending it as a message", async () => {
@@ -479,10 +489,20 @@ describe("useMessageHandlers — send routing", () => {
 		expect(setEnableButtons).toHaveBeenLastCalledWith(true)
 	})
 
-	// The webview does not gate sends on provider usability: submission always
-	// reaches the extension, which surfaces auth/config problems as chat errors
-	// (emitClineAuthError for the Cline provider, say:"error" otherwise).
-	it("always forwards a new task to the extension (no webview-side provider gate)", async () => {
+	it("redirects to account login instead of sending when AxGate auth is required", async () => {
+		mockRequiresLogin = true
+		const { result } = renderHook(() => useMessageHandlers([], makeChatState([])))
+
+		await act(async () => {
+			await result.current.handleSendMessage("should not be sent", [], [])
+		})
+
+		expect(mockPromptLogin).toHaveBeenCalledTimes(1)
+		expect(newTask).not.toHaveBeenCalled()
+		expect(askResponse).not.toHaveBeenCalled()
+	})
+
+	it("forwards a new task to the extension when login is not required", async () => {
 		mockTurnState = { phase: "idle", seq: 1 }
 		const { result } = renderHook(() => useMessageHandlers([], makeChatState([])))
 

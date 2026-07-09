@@ -9,6 +9,7 @@ import { getHooksEnabledSafe } from "@core/hooks/hooks-utils"
 import type { ExtensionState, Platform } from "@shared/ExtensionMessage"
 import { ClineEnv } from "@/config"
 import { ExtensionRegistryInfo } from "@/registry"
+import { isAxgateAuthEnabled } from "@/sdk/axgate/config"
 import { BannerService } from "@/services/banner/BannerService"
 import { featureFlagsService } from "@/services/feature-flags"
 import { getDistinctId } from "@/services/logging/distinctId"
@@ -182,5 +183,6 @@ export async function getStateToPostToWebview(controller: {
 		banners,
 		welcomeBanners,
 		openAiCodexIsAuthenticated,
+		axgateAuthEnabled: isAxgateAuthEnabled(),
 	} as ExtensionState
 }

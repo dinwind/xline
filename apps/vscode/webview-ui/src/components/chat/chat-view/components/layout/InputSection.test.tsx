@@ -1,13 +1,21 @@
 import type { TurnState } from "@shared/ExtensionMessage"
 import { fireEvent, render, screen } from "@testing-library/react"
 import React from "react"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { ChatState, MessageHandlers, ScrollBehavior } from "../../types/chatTypes"
 import { InputSection } from "./InputSection"
 
 const mockTurnState = vi.fn<() => TurnState | undefined>(() => undefined)
+let mockRequiresLogin = false
+const mockPromptLogin = vi.fn()
 vi.mock("@/context/ExtensionStateContext", () => ({
 	useExtensionState: () => ({ turnState: mockTurnState() }),
+}))
+vi.mock("@/hooks/useAxgateLoginGate", () => ({
+	useAxgateLoginGate: () => ({
+		requiresLogin: mockRequiresLogin,
+		promptLogin: mockPromptLogin,
+	}),
 }))
 
 vi.mock("@/components/chat/ChatTextArea", () => ({
@@ -53,6 +61,11 @@ function makeScrollBehavior(): ScrollBehavior {
 }
 
 describe("InputSection", () => {
+	beforeEach(() => {
+		mockRequiresLogin = false
+		mockPromptLogin.mockReset()
+	})
+
 	it("allows submit while the turn is streaming so the message can be queued", () => {
 		mockTurnState.mockReturnValue({ phase: "streaming", seq: 1 })
 		const handleSendMessage = vi.fn().mockResolvedValue(undefined)
@@ -142,5 +155,24 @@ describe("InputSection", () => {
 
 		fireEvent.keyDown(composer, { key: "Enter" })
 		expect(handleSendMessage).not.toHaveBeenCalled()
+	})
+
+	it("keeps submit disabled when AxGate login is required", () => {
+		mockRequiresLogin = true
+		const handleSendMessage = vi.fn().mockResolvedValue(undefined)
+
+		render(
+			<InputSection
+				chatState={makeChatState({ sendingDisabled: false })}
+				messageHandlers={{ handleSendMessage } as unknown as MessageHandlers}
+				placeholderText="Type a message"
+				scrollBehavior={makeScrollBehavior()}
+				selectFilesAndImages={vi.fn()}
+				shouldDisableFilesAndImages={false}
+			/>,
+		)
+
+		const composer = screen.getByLabelText("composer")
+		expect(composer).toBeDisabled()
 	})
 })

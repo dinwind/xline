@@ -570,6 +570,30 @@ const clinePass = createClineLikeSpec({
 	},
 });
 
+function getAxgateDefaultBaseUrl(): string {
+	const fromEnv = process.env.AXLINE_AXGATE_BASE_URL?.trim();
+	if (!fromEnv) {
+		return "";
+	}
+	return `${fromEnv.replace(/\/$/, "")}/v1`;
+}
+
+const axgate: BuiltinSpec = {
+	id: "axgate",
+	name: "AxGate",
+	description: "AxGate OpenAI-compatible gateway",
+	family: "openai-compatible",
+	popular: 0,
+	capabilities: ["reasoning", "tools", "oauth"],
+	defaultModelId: "auto",
+	apiKeyEnv: ["AXLINE_AXGATE_BASE_URL"],
+	defaults: {
+		get baseUrl(): string {
+			return getAxgateDefaultBaseUrl();
+		},
+	},
+};
+
 const OPENAI_COMPATIBLE_SPECS: BuiltinSpec[] = [
 	{
 		id: "openai-compatible",
@@ -584,6 +608,7 @@ const OPENAI_COMPATIBLE_SPECS: BuiltinSpec[] = [
 	},
 	cline,
 	clinePass,
+	axgate,
 	{
 		id: "deepseek",
 		name: "DeepSeek",

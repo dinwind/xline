@@ -1,11 +1,18 @@
 import { NewTaskRequest } from "@shared/proto/cline/task"
 import React from "react"
+import { useAxgateLoginGate } from "@/hooks/useAxgateLoginGate"
 import { TaskServiceClient } from "@/services/grpc-client"
 import QuickWinCard from "./QuickWinCard"
 import { QuickWinTask, quickWinTasks } from "./quickWinTasks"
 
 export const SuggestedTasks: React.FC<{ shouldShowQuickWins: boolean }> = ({ shouldShowQuickWins }) => {
+	const { requiresLogin, promptLogin } = useAxgateLoginGate()
+
 	const handleExecuteQuickWin = async (prompt: string) => {
+		if (requiresLogin) {
+			promptLogin()
+			return
+		}
 		await TaskServiceClient.newTask(NewTaskRequest.create({ text: prompt, images: [] }))
 	}
 

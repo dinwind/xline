@@ -1,4 +1,5 @@
 import { setCompactionStrategyGlobally } from "@cline/core"
+import { normalizeInstructionSystem } from "@cline/shared/storage"
 import { Empty } from "@shared/proto/cline/common"
 import { PlanActMode, McpDisplayMode as ProtoMcpDisplayMode, UpdateSettingsRequest } from "@shared/proto/cline/state"
 import { convertProtoToApiProvider } from "@shared/proto-conversions/models/api-configuration-conversion"
@@ -112,9 +113,10 @@ export async function updateSettings(controller: Controller, request: UpdateSett
 		}
 
 		if (request.instructionSystem !== undefined && request.instructionSystem !== "") {
+			const instructionSystem = normalizeInstructionSystem(request.instructionSystem)
 			const previous = controller.stateManager.getGlobalSettingsKey("instructionSystem")
-			controller.stateManager.setGlobalState("instructionSystem", request.instructionSystem)
-			if (previous !== request.instructionSystem) {
+			controller.stateManager.setGlobalState("instructionSystem", instructionSystem)
+			if (previous !== instructionSystem) {
 				await controller.invalidateUserInstructionService?.()
 				await controller.postStateToWebview()
 			}

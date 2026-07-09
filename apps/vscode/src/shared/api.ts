@@ -23,6 +23,7 @@ export type ApiProvider =
 	| "vscode-lm"
 	| "cline"
 	| "cline-pass"
+	| "axgate"
 	| "litellm"
 	| "moonshot"
 	| "nebius"

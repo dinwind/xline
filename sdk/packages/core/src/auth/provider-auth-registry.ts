@@ -10,6 +10,11 @@ import {
 	loginClineOAuth,
 } from "./cline";
 import { getValidOpenAICodexCredentials, loginOpenAICodex } from "./codex";
+import {
+	DEFAULT_AXLINE_AUTH_APP_ID,
+	getValidAxgateCredentials,
+	stripAxgateTokenPrefix,
+} from "./axgate";
 import { getValidOcaCredentials, loginOcaOAuth } from "./oca";
 import type { OAuthCredentials, OAuthLoginCallbacks } from "./types";
 import { decodeJwtPayload } from "./utils";
@@ -232,6 +237,36 @@ const providerAuthHandlers = [
 	createClineAuthHandler({
 		providerId: "cline-pass",
 		storageProviderId: "cline",
+	}),
+	createOAuthHandler({
+		providerId: "axgate",
+		login: ({ settings, callbacks }) => {
+			void callbacks;
+			const baseUrl = settings?.baseUrl?.replace(/\/v1\/?$/, "")?.trim();
+			if (!baseUrl) {
+				throw new Error(
+					'AxGate provider requires baseUrl or AXLINE_AXGATE_BASE_URL configuration',
+				);
+			}
+			throw new Error(
+				"AxGate login requires username/password via AccountService.accountLoginWithCredentials",
+			);
+		},
+		refresh: ({ settings, credentials, forceRefresh }) => {
+			const baseUrl = settings?.baseUrl?.replace(/\/v1\/?$/, "")?.trim();
+			if (!baseUrl) {
+				return Promise.resolve(null);
+			}
+			const appId =
+				(settings?.auth as { appId?: string } | undefined)?.appId?.trim() ||
+				DEFAULT_AXLINE_AUTH_APP_ID;
+			return getValidAxgateCredentials(
+				credentials,
+				{ baseUrl, appId },
+				{ forceRefresh },
+			);
+		},
+		normalizeStoredAccessToken: stripAxgateTokenPrefix,
 	}),
 	createOAuthHandler({
 		providerId: "oca",

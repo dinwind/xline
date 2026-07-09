@@ -15,6 +15,11 @@ interface EndpointsFileSchema {
 	mcpBaseUrl: string
 }
 
+interface AxgateEndpointsExtension {
+	axgateBaseUrl?: string
+	authAppId?: string
+}
+
 /**
  * Error thrown when the Cline configuration file exists but is invalid.
  * This error prevents Cline from starting to avoid misconfiguration in enterprise environments.
@@ -33,6 +38,7 @@ class ClineEndpoint {
 
 	// On-premise config loaded from file (null if not on-premise)
 	private onPremiseConfig: EndpointsFileSchema | null = null
+	private axgateConfig: AxgateEndpointsExtension | null = null
 	private environment: Environment = Environment.production
 	// Track if config came from bundled file (enterprise distribution)
 	private isBundled = false
@@ -64,8 +70,11 @@ class ClineEndpoint {
 		// Try to load on-premise config from file
 		const endpointsConfig = await ClineEndpoint.loadEndpointsFile()
 		if (endpointsConfig) {
-			ClineEndpoint._instance.onPremiseConfig = endpointsConfig
-			Logger.log("Cline running in self-hosted mode with custom endpoints")
+			ClineEndpoint._instance.onPremiseConfig = endpointsConfig.config
+			ClineEndpoint._instance.axgateConfig = endpointsConfig.axgate
+			if (endpointsConfig.config) {
+				Logger.log("Cline running in self-hosted mode with custom endpoints")
+			}
 		}
 
 		ClineEndpoint._initialized = true
@@ -145,7 +154,10 @@ class ClineEndpoint {
 	 * @returns The validated endpoints config, or null if no file exists
 	 * @throws ClineConfigurationError if a file exists but is invalid
 	 */
-	private static async loadEndpointsFile(): Promise<EndpointsFileSchema | null> {
+	private static async loadEndpointsFile(): Promise<{
+		config: EndpointsFileSchema | null
+		axgate: AxgateEndpointsExtension | null
+	} | null> {
 		// 1. Try bundled file
 		const bundledPath = ClineEndpoint.getBundledEndpointsFilePath()
 		try {
@@ -162,10 +174,10 @@ class ClineEndpoint {
 				)
 			}
 
-			const config = ClineEndpoint.validateEndpointsSchema(data, bundledPath)
+			const parsed = ClineEndpoint.parseEndpointsFile(data, bundledPath)
 			// Mark as bundled enterprise distribution
 			ClineEndpoint._instance!.isBundled = true
-			return config
+			return parsed
 		} catch (error) {
 			if (error instanceof ClineConfigurationError) {
 				throw error
@@ -195,7 +207,7 @@ class ClineEndpoint {
 				)
 			}
 
-			return ClineEndpoint.validateEndpointsSchema(data, userPath)
+			return ClineEndpoint.parseEndpointsFile(data, userPath)
 		} catch (error) {
 			if (error instanceof ClineConfigurationError) {
 				throw error
@@ -204,6 +216,83 @@ class ClineEndpoint {
 				`Failed to read user endpoints configuration file (${userPath}): ${error instanceof Error ? error.message : String(error)}`,
 			)
 		}
+	}
+
+	/**
+	 * Parses endpoints.json, supporting optional AxGate-only configuration.
+	 */
+	private static parseEndpointsFile(
+		data: unknown,
+		filePath: string,
+	): { config: EndpointsFileSchema | null; axgate: AxgateEndpointsExtension | null } {
+		if (typeof data !== "object" || data === null) {
+			throw new ClineConfigurationError(`Endpoints configuration file (${filePath}) must contain a JSON object`)
+		}
+
+		const obj = data as Record<string, unknown>
+		const axgate = ClineEndpoint.parseAxgateExtension(obj, filePath)
+		const hasRequiredFields = ["appBaseUrl", "apiBaseUrl", "mcpBaseUrl"].every(
+			(field) => typeof obj[field] === "string" && String(obj[field]).trim(),
+		)
+
+		if (hasRequiredFields) {
+			return {
+				config: ClineEndpoint.validateEndpointsSchema(data, filePath),
+				axgate,
+			}
+		}
+
+		if (axgate?.axgateBaseUrl) {
+			return { config: null, axgate }
+		}
+
+		throw new ClineConfigurationError(
+			`Endpoints configuration file (${filePath}) must include appBaseUrl/apiBaseUrl/mcpBaseUrl or axgateBaseUrl`,
+		)
+	}
+
+	private static parseAxgateExtension(obj: Record<string, unknown>, filePath: string): AxgateEndpointsExtension | null {
+		const axgateBaseUrl = obj.axgateBaseUrl
+		const authAppId = obj.authAppId
+
+		if (axgateBaseUrl === undefined && authAppId === undefined) {
+			return null
+		}
+
+		const result: AxgateEndpointsExtension = {}
+		if (axgateBaseUrl !== undefined) {
+			if (typeof axgateBaseUrl !== "string" || !axgateBaseUrl.trim()) {
+				throw new ClineConfigurationError(
+					`Field "axgateBaseUrl" in endpoints configuration file (${filePath}) must be a non-empty string URL`,
+				)
+			}
+			try {
+				new URL(axgateBaseUrl)
+			} catch {
+				throw new ClineConfigurationError(
+					`Field "axgateBaseUrl" in endpoints configuration file (${filePath}) must be a valid URL. Got: "${axgateBaseUrl}"`,
+				)
+			}
+			result.axgateBaseUrl = axgateBaseUrl
+		}
+
+		if (authAppId !== undefined) {
+			if (typeof authAppId !== "string" || !authAppId.trim()) {
+				throw new ClineConfigurationError(
+					`Field "authAppId" in endpoints configuration file (${filePath}) must be a non-empty string`,
+				)
+			}
+			result.authAppId = authAppId
+		}
+
+		return result
+	}
+
+	public static getAxgateConfig(): AxgateEndpointsExtension | null {
+		if (!ClineEndpoint._initialized || !ClineEndpoint._instance) {
+			return null
+		}
+		return ClineEndpoint._instance.axgateConfig
 	}
 
 	/**

@@ -337,7 +337,8 @@ const OnboardingStepContent = ({
 
 const OnboardingViewContent = ({ onboardingModels }: { onboardingModels: OnboardingModelGroup }) => {
 	const { handleFieldsChange } = useApiConfigurationHandlers()
-	const { openRouterModels, hideSettings, hideAccount, setShowWelcome } = useExtensionState()
+	const { openRouterModels, hideSettings, hideAccount, setShowWelcome, axgateAuthEnabled, navigateToAccount } =
+		useExtensionState()
 	const isClinePassEnabled = useHasFeatureFlag(CLINE_PASS_FEATURE_FLAG)
 	const { models: clineModels } = useProviderModels("cline")
 	const { commitSelection } = useProviderConfig("cline")
@@ -520,24 +521,23 @@ const OnboardingViewContent = ({ onboardingModels }: { onboardingModels: Onboard
 				}
 			}, 10_000)
 
-			await AccountServiceClient.accountLoginClicked({})
-				.catch((error) => {
+			if (axgateAuthEnabled) {
+				navigateToAccount()
+			} else {
+				await AccountServiceClient.accountLoginClicked({}).catch((error) => {
 					console.error("Failed to log in during onboarding:", error)
 				})
-				.finally(() => {
-					if (loginAttemptIdRef.current !== loginAttemptId) {
-						return
-					}
-					if (loginLoadingTimeoutRef.current) {
-						clearTimeout(loginLoadingTimeoutRef.current)
-						loginLoadingTimeoutRef.current = null
-					}
-				})
+			}
+
+			if (loginAttemptIdRef.current === loginAttemptId && loginLoadingTimeoutRef.current) {
+				clearTimeout(loginLoadingTimeoutRef.current)
+				loginLoadingTimeoutRef.current = null
+			}
 
 			await finishOnboarding(updateModelId, step)
 			setIsActionLoading(false)
 		},
-		[finishOnboarding],
+		[finishOnboarding, axgateAuthEnabled, navigateToAccount],
 	)
 
 	const handleFooterAction = useCallback(

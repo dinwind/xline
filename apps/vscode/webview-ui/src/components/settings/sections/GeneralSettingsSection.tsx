@@ -28,9 +28,8 @@ const GeneralSettingsSection = ({ renderSectionHeader }: GeneralSettingsSectionP
 					<label className="block mb-2">Instruction system</label>
 					<VSCodeDropdown
 						className="w-full"
-						onChange={(e: Event) => {
-							const target = e.target as HTMLSelectElement
-							updateSetting("instructionSystem", target.value)
+						onChange={(e: any) => {
+							updateSetting("instructionSystem", e.target.value)
 						}}
 						value={instructionSystem ?? "cokodo"}>
 						{INSTRUCTION_SYSTEM_OPTIONS.map((option) => (

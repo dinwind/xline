@@ -20,6 +20,7 @@ export {
 	resolveClineDir,
 	resolveConfiguredPluginModulePaths,
 	resolveConnectorDataDir,
+	resolveConnectorSettingsPath,
 	resolveCokodoRulesSearchPaths,
 	resolveCokodoSkillsSearchPaths,
 	resolveCokodoWorkflowsSearchPaths,

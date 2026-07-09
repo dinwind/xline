@@ -39,6 +39,7 @@ await runBuild("node", {
 		"./src/db/index.ts",
 		"./src/remote-config/index.ts",
 		"./src/storage/index.ts",
+		"./src/storage/instruction-system.ts",
 	],
 	outdir: "./dist",
 	target: "node",

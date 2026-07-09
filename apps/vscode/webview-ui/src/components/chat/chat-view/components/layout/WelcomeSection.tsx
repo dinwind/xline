@@ -66,6 +66,8 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 		worktreesEnabled,
 		banners,
 		welcomeBanners,
+		axgateAuthEnabled,
+		navigateToAccount,
 	} = useExtensionState()
 	const { handleFieldsChange } = useApiConfigurationHandlers()
 
@@ -175,6 +177,10 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 				}
 
 				case BannerActionType.ShowAccount:
+					if (axgateAuthEnabled) {
+						navigateToAccount()
+						break
+					}
 					AccountServiceClient.accountLoginClicked({}).catch((err) => console.error("Failed to get login URL:", err))
 					break
 
@@ -203,7 +209,14 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 					console.warn("Unknown banner action:", action.action)
 			}
 		},
-		[handleFieldsChange, openRouterModels, navigateToSettings, navigateToSettingsModelPicker],
+		[
+			handleFieldsChange,
+			openRouterModels,
+			navigateToSettings,
+			navigateToSettingsModelPicker,
+			axgateAuthEnabled,
+			navigateToAccount,
+		],
 	)
 
 	/**

@@ -1,5 +1,6 @@
 import { UserOrganization, UserOrganizationsResponse } from "@shared/proto/cline/account"
 import type { EmptyRequest } from "@shared/proto/cline/common"
+import { isAxgateAuthEnabled } from "@/sdk/axgate/config"
 import type { Controller } from "../index"
 
 /**
@@ -10,6 +11,10 @@ import type { Controller } from "../index"
  */
 export async function getUserOrganizations(controller: Controller, _request: EmptyRequest): Promise<UserOrganizationsResponse> {
 	try {
+		if (isAxgateAuthEnabled()) {
+			return UserOrganizationsResponse.create({ organizations: [] })
+		}
+
 		if (!controller.accountService) {
 			throw new Error("Account service not available")
 		}

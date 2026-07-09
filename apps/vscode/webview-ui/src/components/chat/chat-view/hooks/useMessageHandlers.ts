@@ -4,6 +4,7 @@ import { AskResponseRequest, NewTaskRequest } from "@shared/proto/cline/task"
 import { IntentEvent } from "@shared/proto/cline/ui"
 import { useCallback, useRef } from "react"
 import { useExtensionState } from "@/context/ExtensionStateContext"
+import { useAxgateLoginGate } from "@/hooks/useAxgateLoginGate"
 import { SlashServiceClient, TaskServiceClient, UiServiceClient } from "@/services/grpc-client"
 import type { ButtonActionType } from "../shared/buttonConfig"
 import type { ChatState, MessageHandlers } from "../types/chatTypes"
@@ -14,6 +15,7 @@ import type { ChatState, MessageHandlers } from "../types/chatTypes"
  */
 export function useMessageHandlers(messages: ClineMessage[], chatState: ChatState): MessageHandlers {
 	const { backgroundCommandRunning, turnState } = useExtensionState()
+	const { requiresLogin, promptLogin } = useAxgateLoginGate()
 	const {
 		setInputValue,
 		activeQuote,
@@ -33,6 +35,11 @@ export function useMessageHandlers(messages: ClineMessage[], chatState: ChatStat
 	// Handle sending a message
 	const handleSendMessage = useCallback(
 		async (text: string, images: string[], files: string[]) => {
+			if (requiresLogin) {
+				promptLogin()
+				return
+			}
+
 			let messageToSend = text.trim()
 			const hasContent = messageToSend || images.length > 0 || files.length > 0
 
@@ -267,6 +274,8 @@ export function useMessageHandlers(messages: ClineMessage[], chatState: ChatStat
 			setEnableButtons,
 			setPendingUserMessage,
 			chatState,
+			requiresLogin,
+			promptLogin,
 		],
 	)
 
@@ -294,6 +303,11 @@ export function useMessageHandlers(messages: ClineMessage[], chatState: ChatStat
 	// Execute button action based on type
 	const executeButtonAction = useCallback(
 		async (actionType: ButtonActionType, text?: string, images?: string[], files?: string[]) => {
+			if (requiresLogin && actionType !== "cancel") {
+				promptLogin()
+				return
+			}
+
 			const trimmedInput = text?.trim()
 			const hasContent = trimmedInput || (images && images.length > 0) || (files && files.length > 0)
 
@@ -435,6 +449,8 @@ export function useMessageHandlers(messages: ClineMessage[], chatState: ChatStat
 			backgroundCommandRunning,
 			setSendingDisabled,
 			setEnableButtons,
+			requiresLogin,
+			promptLogin,
 		],
 	)
 

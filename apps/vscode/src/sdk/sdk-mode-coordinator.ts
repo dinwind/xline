@@ -17,7 +17,8 @@ type InitialMessages = StartInput["initialMessages"]
 type SessionConfig = Awaited<ReturnType<SdkSessionConfigBuilder["build"]>>
 
 function usesClineAccountAuth(providerId: string): boolean {
-	return getProviderAuthStorageId(providerId) === "cline"
+	const storageId = getProviderAuthStorageId(providerId) ?? providerId
+	return storageId === "cline" || storageId === "axgate"
 }
 
 export const ACT_MODE_CONTINUATION_PROMPT = "The user approved switching to act mode. Continue with the approved plan now."

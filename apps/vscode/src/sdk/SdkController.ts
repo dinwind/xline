@@ -48,6 +48,7 @@ import { isClineProvider } from "@/shared/utils/cline"
 import { arePathsEqual, getDesktopDir } from "@/utils/path"
 import { ClineAccountService } from "./account-service"
 import { AuthService, LogoutReason } from "./auth-service"
+import { isAxgateAuthEnabled } from "./axgate/config"
 import { buildStartSessionInput, createHistoryItemFromSession } from "./cline-session-factory"
 import { MessageTranslatorState, reshapeErrorForWebview } from "./message-translator"
 import { createProviderCatalog } from "./model-catalog/catalog"
@@ -107,7 +108,8 @@ function metadataNumber(metadata: SessionHistoryRecord["metadata"] | undefined, 
 }
 
 function usesClineAccountAuth(providerId: string): boolean {
-	return getProviderAuthStorageId(providerId) === "cline"
+	const storageId = getProviderAuthStorageId(providerId) ?? providerId
+	return storageId === "cline" || storageId === "axgate"
 }
 
 function metadataBoolean(metadata: SessionHistoryRecord["metadata"] | undefined, key: string): boolean | undefined {
@@ -952,10 +954,11 @@ export class Controller {
 			)
 		}
 
+		const authErrorProviderId = isAxgateAuthEnabled() ? "axgate" : "cline"
 		const clineError = new ClineError(
 			{ message: CLINE_ACCOUNT_AUTH_ERROR_MESSAGE, status: 401 },
 			undefined, // modelId
-			"cline",
+			authErrorProviderId,
 		)
 		const serializedError = clineError.serialize()
 

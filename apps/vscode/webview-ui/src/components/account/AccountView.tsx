@@ -14,6 +14,7 @@ import ViewHeader from "../common/ViewHeader"
 import VSCodeButtonLink from "../common/VSCodeButtonLink"
 import { updateSetting } from "../settings/utils/settingsHandlers"
 import { AccountWelcomeView } from "./AccountWelcomeView"
+import { AxgateAccountView } from "./AxgateAccountView"
 import { CreditBalance } from "./CreditBalance"
 import CreditsHistoryTable from "./CreditsHistoryTable"
 import { convertProtoUsageTransactions, getClineUris, getMainRole } from "./helpers"
@@ -43,20 +44,24 @@ type CachedData = {
 const ClineEnvOptions = ["Production", "Staging", "Local"] as const
 
 const AccountView = ({ onDone, clineUser, organizations, activeOrganization }: AccountViewProps) => {
-	const { environment } = useExtensionState()
+	const { environment, axgateAuthEnabled } = useExtensionState()
 
 	return (
 		<div className="fixed inset-0 flex flex-col overflow-hidden">
 			<ViewHeader environment={environment} onDone={onDone} showEnvironmentSuffix title="Account" />
 			<div className="grow flex flex-col px-5 overflow-y-auto">
 				{clineUser?.uid ? (
-					<ClineAccountView
-						activeOrganization={activeOrganization}
-						clineEnv={environment === "local" ? "Local" : environment === "staging" ? "Staging" : "Production"}
-						clineUser={clineUser}
-						key={clineUser.uid}
-						userOrganizations={organizations}
-					/>
+					axgateAuthEnabled ? (
+						<AxgateAccountView clineUser={clineUser} key={clineUser.uid} />
+					) : (
+						<ClineAccountView
+							activeOrganization={activeOrganization}
+							clineEnv={environment === "local" ? "Local" : environment === "staging" ? "Staging" : "Production"}
+							clineUser={clineUser}
+							key={clineUser.uid}
+							userOrganizations={organizations}
+						/>
+					)
 				) : (
 					<AccountWelcomeView />
 				)}

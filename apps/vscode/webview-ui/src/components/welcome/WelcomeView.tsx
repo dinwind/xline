@@ -8,7 +8,7 @@ import { AccountServiceClient, StateServiceClient } from "@/services/grpc-client
 import { validateApiConfiguration } from "@/utils/validate"
 
 const WelcomeView = memo(() => {
-	const { apiConfiguration, mode } = useExtensionState()
+	const { apiConfiguration, mode, axgateAuthEnabled, navigateToAccount } = useExtensionState()
 	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
 	const [showApiOptions, setShowApiOptions] = useState(false)
 	const [isLoading, setIsLoading] = useState(false)
@@ -16,6 +16,11 @@ const WelcomeView = memo(() => {
 	const disableLetsGoButton = apiErrorMessage != null
 
 	const handleLogin = () => {
+		if (axgateAuthEnabled) {
+			navigateToAccount()
+			return
+		}
+
 		setIsLoading(true)
 		AccountServiceClient.accountLoginClicked(EmptyRequest.create())
 			.catch((err) => console.error("Failed to get login URL:", err))
@@ -54,12 +59,13 @@ const WelcomeView = memo(() => {
 				</p>
 
 				<p className="text-(--vscode-descriptionForeground)">
-					Sign up for an account to get started for free, or use an API key that provides access to models like Claude
-					Sonnet.
+					{axgateAuthEnabled
+						? "Sign in with your Axline account to access AxGate models and start coding."
+						: "Sign up for an account to get started for free, or use an API key that provides access to models like Claude Sonnet."}
 				</p>
 
 				<VSCodeButton appearance="primary" className="w-full mt-1" disabled={isLoading} onClick={handleLogin}>
-					Get Started for Free
+					{axgateAuthEnabled ? "Sign in with Axline" : "Get Started for Free"}
 					{isLoading && (
 						<span className="ml-1 animate-spin">
 							<span className="codicon codicon-refresh" />

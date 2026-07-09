@@ -31,6 +31,8 @@ const KNOWN_API_PROVIDERS = {
 	mistral: true,
 	"vscode-lm": true,
 	cline: true,
+	"cline-pass": true,
+	axgate: true,
 	litellm: true,
 	moonshot: true,
 	nebius: true,
@@ -58,7 +60,6 @@ const KNOWN_API_PROVIDERS = {
 	wandb: true,
 	xiaomi: true,
 	"tencent-tokenhub": true,
-	"cline-pass": true,
 } satisfies Record<ApiProvider, true>
 
 const normalizeProviderId = (raw: string): string => raw.trim().toLowerCase()

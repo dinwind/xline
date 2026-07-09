@@ -1,27 +1,45 @@
-import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
-import { ClineAuthStatus } from "@/components/account/ClineAuthStatus"
+import { VSCodeButton, VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
+import { useState } from "react"
 import { useClineSignIn } from "@/context/ClineAuthContext"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import ClineLogoVariable from "../../assets/ClineLogoVariable"
 
-// export const AccountWelcomeView = () => (
-// 	<div className="flex flex-col items-center pr-3 gap-2.5">
-// 		<ClineLogoWhite className="size-16 mb-4" />
 export const AccountWelcomeView = () => {
 	const { environment } = useExtensionState()
-	const { isLoginLoading, authStatusMessage, handleSignIn } = useClineSignIn()
+	const { isLoginLoading, authStatusMessage, loginError, handleSignIn } = useClineSignIn()
+	const [username, setUsername] = useState("")
+	const [password, setPassword] = useState("")
 
 	return (
-		<div className="flex flex-col items-center gap-2.5">
+		<div className="flex flex-col items-center gap-2.5 w-full">
 			<ClineLogoVariable className="size-16 mb-4" environment={environment} />
 
-			<p>
-				Sign up for an account to get access to the latest models, billing dashboard to view usage and credits, and more
-				upcoming features.
-			</p>
+			<p>Sign in with your Axline account to access AxGate models, view usage, and manage your provider settings.</p>
 
-			<VSCodeButton className="w-full mb-4" disabled={isLoginLoading} onClick={handleSignIn}>
-				Sign up with Cline
+			<VSCodeTextField
+				className="w-full"
+				disabled={isLoginLoading}
+				onInput={(event) => setUsername((event.target as HTMLInputElement).value)}
+				placeholder="Email or username"
+				value={username}>
+				Username
+			</VSCodeTextField>
+
+			<VSCodeTextField
+				className="w-full"
+				disabled={isLoginLoading}
+				onInput={(event) => setPassword((event.target as HTMLInputElement).value)}
+				placeholder="Password"
+				type="password"
+				value={password}>
+				Password
+			</VSCodeTextField>
+
+			<VSCodeButton
+				className="w-full mb-2"
+				disabled={isLoginLoading || !username.trim() || !password}
+				onClick={() => handleSignIn(username.trim(), password)}>
+				Sign in with Axline
 				{isLoginLoading && (
 					<span className="ml-1 animate-spin">
 						<span className="codicon codicon-refresh" />
@@ -29,12 +47,10 @@ export const AccountWelcomeView = () => {
 				)}
 			</VSCodeButton>
 
-			<ClineAuthStatus message={authStatusMessage} />
-
-			<p className="text-(--vscode-descriptionForeground) text-xs text-center m-0">
-				By continuing, you agree to the <VSCodeLink href="https://cline.bot/tos">Terms of Service</VSCodeLink> and{" "}
-				<VSCodeLink href="https://cline.bot/privacy">Privacy Policy.</VSCodeLink>
-			</p>
+			{authStatusMessage ? (
+				<p className="text-(--vscode-descriptionForeground) text-xs text-center m-0">{authStatusMessage}</p>
+			) : null}
+			{loginError ? <p className="text-(--vscode-errorForeground) text-xs text-center m-0">{loginError}</p> : null}
 		</div>
 	)
 }

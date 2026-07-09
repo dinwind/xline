@@ -2,7 +2,6 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import {
 	AGENTS_RULES_FILE_NAME,
-	DEFAULT_INSTRUCTION_SYSTEM,
 	type InstructionSystem,
 	normalizeInstructionSystem,
 	RULES_CONFIG_DIRECTORY_NAME,

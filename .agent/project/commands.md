@@ -1,175 +1,65 @@
 # Project Commands
 
-> **Instance file**: This file contains project-specific commands and scripts.
+> Agent quick reference — run these instead of rediscovering build steps.
 
 ---
 
-## Quick Reference
+## Axline VS Code（本地 VSIX）
 
 | Task | Command |
 |------|---------|
-| Build | `[command]` |
-| Test | `[command]` |
-| Run | `[command]` |
-| Clean | `[command]` |
+| **一键构建 VSIX** | `bun run build:vscode` |
+| **构建并安装到 VS Code** | `bun run install:vscode` |
+| **仅重打扩展（跳过 install + SDK）** | `bun run package:vscode` |
+| Windows PowerShell | `.\scripts\axline-vscode-build.ps1 -Install` |
+
+**输出：** `apps/vscode/dist/axline.vsix`  
+**扩展 ID：** `axline.axline`
+
+### 常见选项（底层脚本）
+
+```bash
+bun scripts/axline-vscode-build.mjs              # 完整构建
+bun scripts/axline-vscode-build.mjs --install    # 构建 + code --install-extension
+bun scripts/axline-vscode-build.mjs --skip-deps  # 跳过 bun install
+bun scripts/axline-vscode-build.mjs --skip-sdk     # 跳过 build:sdk（仅改扩展/UI 时）
+```
+
+### 已知前提
+
+- **bun** 必须在 PATH；Windows 上脚本会自动追加 `%USERPROFILE%\.bun\bin`
+- **PowerShell** 不支持 `&&`，用 `;` 或上述脚本
+- **F5 调试** 不需要 VSIX：用 `.vscode/launch.json` → `Run Extension (production)`
+- SDK 变更后必须先 `build:sdk`（`build:vscode` 默认包含）
+
+### 安装后验证
+
+1. VS Code → `Developer: Reload Window`
+2. Activity Bar 出现 **Axline** 图标
+3. 设置中配置 API Key，测试 BYOK 对话
 
 ---
 
-## Build Commands
+## SDK / Monorepo
 
-### Development Build
-
-```bash
-[command]
-```
-
-### Release Build
-
-```bash
-[command]
-```
+| Task | Command |
+|------|---------|
+| 安装依赖 | `bun install --frozen-lockfile` |
+| 构建 SDK | `bun run build:sdk` |
+| 类型检查 | `bun run types` |
+| 全量检查 | `bun run check` |
 
 ---
 
-## Test Commands
+## 发布（阶段二，暂未启用）
 
-### Run All Tests
+Marketplace 发布见 `project/axline-vscode-publish.md`。当前阶段一只分发 VSIX：
 
-```bash
-[command]
-```
-
-### Run Specific Test
-
-```bash
-[command] [test_name]
-```
-
-### Test Coverage
-
-```bash
-[command]
-```
-
----
-
-## Run Commands
-
-### Start Application
-
-```bash
-[command]
-```
-
-### Start with Debug
-
-```bash
-[command]
+```powershell
+# GitHub Release 手动上传（示例）
+gh release upload v0.1.0 apps/vscode/dist/axline.vsix --clobber
 ```
 
 ---
 
-## Code Quality
-
-### Format Code
-
-```bash
-[command]
-```
-
-### Lint Check
-
-```bash
-[command]
-```
-
----
-
-## Deployment
-
-### Build for Production
-
-```bash
-[command]
-```
-
-### Deploy
-
-```bash
-[command]
-```
-
----
-
-## Release Governance Commands
-
-Document the commands that pair with `project/version-state.toml`.
-
-### Open Next Iteration
-
-```bash
-co start-next-version --track [track-name] --version [x.y.z] --apply
-```
-
-### Freeze Release Scope
-
-```bash
-co prepare-release --track [track-name] --apply
-```
-
-### Sync Canonical Version / Derived Files
-
-```bash
-[project-local version sync command]
-```
-
-### Build / Package / Publish
-
-```bash
-[project-local release build or deploy command]
-```
-
-### Record Released State
-
-```bash
-co cut-release --track [track-name] --apply
-```
-
-### Suggested Automation Order
-
-1. Run project-local tests and release-note updates
-2. `co prepare-release --track [track-name] --apply`
-3. Update canonical source and sync derived files
-4. Run build/package/deploy commands
-5. Create and push the release tag
-6. `co cut-release --track [track-name] --apply`
-
----
-
-## Agent Git / PR Collaboration
-
-| Task | Entry |
-|------|-------|
-| Git/PR rules for AI agents | `project/AGENT-GIT-PR-WORKFLOW.md` |
-| Full collaboration SOP | `project/sop/agent-git-pr-collaboration.md` |
-| Flush journal fragments into status | `co journal-flush` |
-
----
-
-## Utility Commands
-
-### Clean Build Artifacts
-
-```bash
-[command]
-```
-
-### Update Dependencies
-
-```bash
-[command]
-```
-
----
-
-*Last updated: [DATE]*
+*Last updated: 2026-07-08*

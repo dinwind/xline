@@ -34,6 +34,15 @@ import { CLINE_API_ENDPOINT } from "@/shared/cline/api"
 import { fetch, getAxiosSettings } from "@/shared/net"
 import { Logger } from "@/shared/services/Logger"
 import { openExternal } from "@/utils/env"
+import {
+	axgateClearCredentials,
+	axgateEnsureValidAuthInfo,
+	axgateFetchUserInfo,
+	axgateGetBearerToken,
+	axgateLoginWithCredentials,
+	axgateRestoreAuthInfo,
+} from "./axgate/auth-integration"
+import { isAxgateAuthEnabled } from "./axgate/config"
 import { getProviderSettingsManager } from "./provider-migration"
 
 // ---------------------------------------------------------------------------
@@ -41,32 +50,9 @@ import { getProviderSettingsManager } from "./provider-migration"
 // ---------------------------------------------------------------------------
 
 /** Shape of the auth info cached in memory (NOT persisted to disk). */
-export interface ClineAuthInfo {
-	idToken: string
-	refreshToken?: string
-	expiresAt?: number // seconds since epoch
-	userInfo: ClineAccountUserInfo
-	provider: string
-	startedAt?: number
-}
+export type { ClineAccountOrganization, ClineAccountUserInfo, ClineAuthInfo } from "./auth-types"
 
-export interface ClineAccountUserInfo {
-	createdAt?: string
-	displayName: string
-	email: string
-	id: string
-	organizations: ClineAccountOrganization[]
-	appBaseUrl?: string
-	subject?: string
-}
-
-export interface ClineAccountOrganization {
-	active: boolean
-	memberId: string
-	name: string
-	organizationId: string
-	roles: string[]
-}
+import type { ClineAccountOrganization, ClineAccountUserInfo, ClineAuthInfo } from "./auth-types"
 
 /** Logout reason for telemetry */
 export enum LogoutReason {
@@ -245,6 +231,10 @@ export class AuthService {
 	 * Fetch user info from the Cline API using an access token.
 	 */
 	private async fetchUserInfoFromApi(accessToken: string): Promise<ClineAccountUserInfo | null> {
+		if (isAxgateAuthEnabled()) {
+			return axgateFetchUserInfo(accessToken)
+		}
+
 		try {
 			const apiBaseUrl = ClineEnv.config().apiBaseUrl
 			// Ensure the token has the workos: prefix for the API
@@ -300,6 +290,21 @@ export class AuthService {
 	async getAuthToken(): Promise<string | null> {
 		if (!this._clineAuthInfo?.idToken) {
 			return null
+		}
+
+		if (isAxgateAuthEnabled() && this._clineAuthInfo.provider === "axgate") {
+			const refreshed = await axgateEnsureValidAuthInfo(this._clineAuthInfo)
+			if (!refreshed) {
+				this._clineAuthInfo = null
+				this._authenticated = false
+				await this.sendAuthStatusUpdate()
+				return null
+			}
+			if (refreshed !== this._clineAuthInfo) {
+				this._clineAuthInfo = refreshed
+				this._authenticated = true
+			}
+			return axgateGetBearerToken(this._clineAuthInfo.idToken)
 		}
 
 		// Check if we need to refresh
@@ -431,14 +436,17 @@ export class AuthService {
 	getInfo(): AuthState {
 		if (this._clineAuthInfo && this._authenticated) {
 			const userInfo = this._clineAuthInfo.userInfo
-			userInfo.appBaseUrl = ClineEnv.config().appBaseUrl
+			const isAxgateUser = this._clineAuthInfo.provider === "axgate"
+			if (!isAxgateUser) {
+				userInfo.appBaseUrl = ClineEnv.config().appBaseUrl
+			}
 
 			const user = UserInfo.create({
 				uid: userInfo?.id,
 				displayName: userInfo?.displayName,
 				email: userInfo?.email,
 				photoUrl: undefined,
-				appBaseUrl: userInfo?.appBaseUrl,
+				appBaseUrl: isAxgateUser ? undefined : userInfo?.appBaseUrl,
 			})
 			return AuthState.create({ user })
 		}
@@ -454,6 +462,15 @@ export class AuthService {
 	 * Persists credentials to providers.json.
 	 */
 	async createAuthRequest(strict = false): Promise<String> {
+		if (isAxgateAuthEnabled()) {
+			const { String: ProtoString } = await import("@shared/proto/cline/common")
+			if (strict && this._authenticated) {
+				await this.sendAuthStatusUpdate()
+				return ProtoString.create({ value: "Already authenticated" })
+			}
+			return ProtoString.create({ value: "Enter your Axline username and password to sign in." })
+		}
+
 		// In strict mode, don't open a new auth window if already authenticated
 		if (strict && this._authenticated) {
 			await this.sendAuthStatusUpdate()
@@ -526,6 +543,27 @@ export class AuthService {
 
 		const { String: ProtoString } = await import("@shared/proto/cline/common")
 		return ProtoString.create({ value: await authMessagePromise })
+	}
+
+	async loginWithCredentials(username: string, password: string): Promise<String> {
+		const { String: ProtoString } = await import("@shared/proto/cline/common")
+		if (!isAxgateAuthEnabled()) {
+			throw new Error("Credential login is only available when AxGate is configured")
+		}
+
+		try {
+			const authInfo = await axgateLoginWithCredentials(username.trim(), password)
+			this._clineAuthInfo = authInfo
+			this._authenticated = true
+			await this.sendAuthStatusUpdate()
+			BannerService.onAuthUpdate(authInfo.userInfo?.id || null).catch((error) => {
+				Logger.error("[SdkAuthService] Banner update failed after AxGate login", error)
+			})
+			return ProtoString.create({ value: "Signed in successfully." })
+		} catch (error) {
+			Logger.error("[SdkAuthService] AxGate credential login failed:", error)
+			throw error
+		}
 	}
 
 	/**
@@ -726,7 +764,11 @@ export class AuthService {
 		try {
 			this._clineAuthInfo = null
 			this._authenticated = false
-			clearClineCredentials()
+			if (isAxgateAuthEnabled()) {
+				axgateClearCredentials()
+			} else {
+				clearClineCredentials()
+			}
 			await this.sendAuthStatusUpdate()
 
 			// Notify BannerService of auth change (mirrors classic AuthService)
@@ -834,6 +876,23 @@ export class AuthService {
 	 */
 	async restoreRefreshTokenAndRetrieveAuthInfo(): Promise<void> {
 		try {
+			if (isAxgateAuthEnabled()) {
+				const restored = await axgateRestoreAuthInfo()
+				if (!restored) {
+					this._authenticated = false
+					this._clineAuthInfo = null
+					await this.sendAuthStatusUpdate()
+					return
+				}
+				this._clineAuthInfo = restored
+				this._authenticated = true
+				await this.sendAuthStatusUpdate()
+				BannerService.onAuthUpdate(this._clineAuthInfo.userInfo?.id || null).catch((error) => {
+					Logger.error("[SdkAuthService] Banner update failed after AxGate restore", error)
+				})
+				return
+			}
+
 			const creds = readClineCredentials()
 			if (!creds) {
 				this._authenticated = false
