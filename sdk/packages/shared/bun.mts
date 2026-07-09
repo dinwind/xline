@@ -40,6 +40,7 @@ await runBuild("node", {
 		"./src/remote-config/index.ts",
 		"./src/storage/index.ts",
 		"./src/storage/instruction-system.ts",
+		"./src/storage/cokodo-manifest.ts",
 	],
 	outdir: "./dist",
 	target: "node",

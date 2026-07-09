@@ -1,4 +1,9 @@
-import { DEFAULT_INSTRUCTION_SYSTEM, type InstructionSystem, normalizeInstructionSystem } from "@cline/shared/storage"
+import {
+	DEFAULT_INSTRUCTION_SYSTEM,
+	type InstructionSystem,
+	normalizeInstructionSystem,
+	resolveManifestSkillDirectories,
+} from "@cline/shared/storage"
 import os from "os"
 import * as path from "path"
 
@@ -28,7 +33,10 @@ function getAgentSkillsDirectoryPath(): string {
 }
 
 function getCokodoProjectSkillDirectories(cwd: string): SkillsScanDirectory[] {
-	return [{ path: path.join(cwd, SKILL_DIRECTORY_NAMES.agentSkillsDir), source: "project" }]
+	return resolveManifestSkillDirectories(cwd).map((directoryPath) => ({
+		path: directoryPath,
+		source: "project" as const,
+	}))
 }
 
 function getClineProjectSkillDirectories(cwd: string): SkillsScanDirectory[] {

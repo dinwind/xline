@@ -69,7 +69,12 @@ const AppContent = () => {
 	}, [clineUser?.uid, clineUser?.appBaseUrl])
 
 	if (!didHydrateState) {
-		return null
+		return (
+			<div className="flex h-screen w-full flex-col items-center justify-center gap-3 bg-background text-foreground">
+				<span aria-hidden className="codicon codicon-loading animate-spin text-2xl" />
+				<p className="text-sm text-(--vscode-descriptionForeground)">Loading Axline…</p>
+			</div>
+		)
 	}
 
 	if (showWelcome) {

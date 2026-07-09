@@ -16,6 +16,7 @@ import {
 	type UserInstructionConfigService,
 } from "@cline/core"
 import { formatDisplayUserInput, type RemoteConfig, type RemoteConfigBundle } from "@cline/shared"
+import { detectInstructionSystemForWorkspace } from "@cline/shared/storage"
 import type { ApiConfiguration, ModelInfo } from "@shared/api"
 import type { ChatContent } from "@shared/ChatContent"
 import { CLINE_ACCOUNT_AUTH_ERROR_MESSAGE } from "@shared/ClineAccount"
@@ -554,6 +555,14 @@ export class Controller {
 			})
 
 		Logger.log("[SdkController] Initialized with SDK adapter layer + gRPC bridge + auth services")
+
+		void this.syncCokodoWorkspaceFromWorkspaceRoot()
+	}
+
+	async syncCokodoWorkspaceFromWorkspaceRoot(): Promise<void> {
+		const { syncCokodoWorkspaceIntegration } = await import("@/core/cokodo/sync-cokodo-workspace")
+		const workspacePath = await this.getWorkspaceRoot()
+		await syncCokodoWorkspaceIntegration(this, workspacePath)
 	}
 
 	getProviderConfigStore(): ProviderConfigStore {
@@ -707,7 +716,7 @@ export class Controller {
 		}
 		this.userInstructionServiceRoot = workspaceRoot
 		this.userInstructionService = (async () => {
-			const instructionSystem = this.stateManager.getGlobalSettingsKey("instructionSystem") ?? "cokodo"
+			const instructionSystem = detectInstructionSystemForWorkspace(workspaceRoot)
 			const service = createUserInstructionConfigService({
 				workflows: { workspacePath: workspaceRoot, instructionSystem },
 				skills: {

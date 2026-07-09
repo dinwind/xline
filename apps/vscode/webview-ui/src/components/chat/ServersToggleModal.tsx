@@ -4,13 +4,18 @@ import { convertProtoMcpServersToMcpServers } from "@shared/proto-conversions/mc
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import React, { useEffect, useRef, useState } from "react"
 import { useClickAway, useWindowSize } from "react-use"
+import { ComposerIconButton } from "@/components/chat/ComposerIconButton"
 import PopupModalContainer from "@/components/common/PopupModalContainer"
 import ServersToggleList from "@/components/mcp/configuration/tabs/installed/ServersToggleList"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { McpServiceClient } from "@/services/grpc-client"
 
-const ServersToggleModal: React.FC = () => {
+interface ServersToggleModalProps {
+	useComposerStyle?: boolean
+}
+
+const ServersToggleModal: React.FC<ServersToggleModalProps> = ({ useComposerStyle = false }) => {
 	const { mcpServers, navigateToMcp, setMcpServers } = useExtensionState()
 	const [isVisible, setIsVisible] = useState(false)
 	const buttonRef = useRef<HTMLDivElement>(null)
@@ -54,18 +59,27 @@ const ServersToggleModal: React.FC = () => {
 	return (
 		<div className="inline-flex min-w-0 max-w-full items-center" ref={modalRef}>
 			<div className="inline-flex w-full items-center" ref={buttonRef}>
-				<Tooltip>
-					{!isVisible && <TooltipContent>Manage MCP Servers</TooltipContent>}
-					<TooltipTrigger>
-						<VSCodeButton
-							appearance="icon"
-							aria-label={isVisible ? "Hide MCP Servers" : "Show MCP Servers"}
-							className="p-0 m-0 flex items-center"
-							onClick={() => setIsVisible(!isVisible)}>
-							<i className="codicon codicon-server" style={{ fontSize: "12.5px" }} />
-						</VSCodeButton>
-					</TooltipTrigger>
-				</Tooltip>
+				{useComposerStyle ? (
+					<ComposerIconButton
+						aria-label={isVisible ? "Hide MCP Servers" : "Show MCP Servers"}
+						onClick={() => setIsVisible(!isVisible)}
+						tooltip="Manage MCP Servers">
+						<i className="codicon codicon-server" style={{ fontSize: "12.5px" }} />
+					</ComposerIconButton>
+				) : (
+					<Tooltip>
+						{!isVisible && <TooltipContent>Manage MCP Servers</TooltipContent>}
+						<TooltipTrigger>
+							<VSCodeButton
+								appearance="icon"
+								aria-label={isVisible ? "Hide MCP Servers" : "Show MCP Servers"}
+								className="p-0 m-0 flex items-center"
+								onClick={() => setIsVisible(!isVisible)}>
+								<i className="codicon codicon-server" style={{ fontSize: "12.5px" }} />
+							</VSCodeButton>
+						</TooltipTrigger>
+					</Tooltip>
+				)}
 			</div>
 
 			{isVisible && (
@@ -80,7 +94,7 @@ const ServersToggleModal: React.FC = () => {
 									setIsVisible(false)
 									navigateToMcp("configure")
 								}}>
-								<span className="codicon codicon-gear text-[10px]"></span>
+								<span className="codicon codicon-gear text-[10px]" />
 							</VSCodeButton>
 						</div>
 					</div>

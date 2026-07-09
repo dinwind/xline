@@ -42,7 +42,6 @@ export const TaskSection: React.FC<TaskSectionProps> = ({
 			task={task}
 			tokensIn={apiMetrics.totalTokensIn}
 			tokensOut={apiMetrics.totalTokensOut}
-			totalCost={apiMetrics.totalCost}
 		/>
 	)
 }

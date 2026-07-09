@@ -46,11 +46,8 @@ const CreditsHistoryTable = memo(({ isLoading, usageData, paymentsData, showPaym
 										<VSCodeDataGridCell cell-type="columnheader" grid-column="2">
 											Model
 										</VSCodeDataGridCell>
-										{/* <VSCodeDataGridCell cell-type="columnheader" grid-column="3">
-												Tokens Used
-											</VSCodeDataGridCell> */}
 										<VSCodeDataGridCell cell-type="columnheader" grid-column="3">
-											Credits Used
+											Tokens Used
 										</VSCodeDataGridCell>
 									</VSCodeDataGridRow>
 
@@ -69,8 +66,7 @@ const CreditsHistoryTable = memo(({ isLoading, usageData, paymentsData, showPaym
 															? "Web Fetch (LLM)"
 															: row.aiModelName}
 											</VSCodeDataGridCell>
-											{/* <VSCodeDataGridCell grid-column="3">{`${row.promptTokens} → ${row.completionTokens}`}</VSCodeDataGridCell> */}
-											<VSCodeDataGridCell grid-column="3">{`$${Number(row.creditsUsed / 1000000).toFixed(4)}`}</VSCodeDataGridCell>
+											<VSCodeDataGridCell grid-column="3">{`${row.promptTokens} → ${row.completionTokens}`}</VSCodeDataGridCell>
 										</VSCodeDataGridRow>
 									))}
 								</VSCodeDataGrid>

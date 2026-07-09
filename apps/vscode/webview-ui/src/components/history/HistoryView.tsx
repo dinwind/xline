@@ -17,7 +17,7 @@ type HistoryViewProps = {
 	onDone: () => void
 }
 
-type SortOption = "newest" | "oldest" | "mostExpensive" | "mostTokens" | "mostRelevant"
+type SortOption = "newest" | "oldest" | "mostTokens" | "mostRelevant"
 
 const isToday = (timestamp: number): boolean => {
 	const date = new Date(timestamp)
@@ -28,7 +28,6 @@ const isToday = (timestamp: number): boolean => {
 const HISTORY_FILTERS = {
 	newest: "Newest",
 	oldest: "Oldest",
-	mostExpensive: "Most Expensive",
 	mostTokens: "Most Tokens",
 	mostRelevant: "Most Relevant",
 	workspaceOnly: "Workspace Only",
@@ -292,8 +291,6 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 			switch (sortOption) {
 				case "oldest":
 					return a.ts - b.ts
-				case "mostExpensive":
-					return (b.totalCost || 0) - (a.totalCost || 0)
 				case "mostTokens":
 					return (
 						(b.tokensIn || 0) +
@@ -408,13 +405,7 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 					<Select
 						onValueChange={(value) => {
 							// Handle sort options
-							if (
-								value === "newest" ||
-								value === "oldest" ||
-								value === "mostExpensive" ||
-								value === "mostTokens" ||
-								value === "mostRelevant"
-							) {
+							if (value === "newest" || value === "oldest" || value === "mostTokens" || value === "mostRelevant") {
 								if (value === "mostRelevant" && !searchQuery) {
 									// Don't allow selecting mostRelevant without a search query
 									return
@@ -437,9 +428,7 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 						</SelectTrigger>
 						<SelectContent position="popper">
 							{Object.entries(HISTORY_FILTERS).map(([key, value]) => {
-								const isSortOption = ["newest", "oldest", "mostExpensive", "mostTokens", "mostRelevant"].includes(
-									key,
-								)
+								const isSortOption = ["newest", "oldest", "mostTokens", "mostRelevant"].includes(key)
 								const isFilterOption = ["workspaceOnly", "favoritesOnly"].includes(key)
 								const isSelected = isSortOption
 									? sortOption === key

@@ -6,7 +6,10 @@ const platforms = {
 	linux: /linux/,
 }
 
-export const detectOS = (platform: string) => {
+export const detectOS = (platform: string | undefined) => {
+	if (!platform) {
+		return unknown
+	}
 	let detectedOs = unknown
 	if (platform.match(platforms.windows)) {
 		detectedOs = "windows"
@@ -18,7 +21,10 @@ export const detectOS = (platform: string) => {
 	return detectedOs
 }
 
-export const detectMetaKeyChar = (platform: string) => {
+export const detectMetaKeyChar = (platform: string | undefined) => {
+	if (!platform) {
+		return "CMD"
+	}
 	if (platform.match(platforms.mac)) {
 		return "CMD"
 	}

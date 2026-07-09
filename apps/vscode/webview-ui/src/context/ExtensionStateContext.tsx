@@ -328,6 +328,11 @@ export const ExtensionStateContextProvider: React.FC<{
 	})
 	const [expandTaskHeader, setExpandTaskHeader] = useState(true)
 	const [didHydrateState, setDidHydrateState] = useState(false)
+	const didHydrateStateRef = useRef(false)
+
+	useEffect(() => {
+		didHydrateStateRef.current = didHydrateState
+	}, [didHydrateState])
 
 	const [showWelcome, setShowWelcome] = useState(false)
 	const [onboardingModels, setOnboardingModels] = useState<OnboardingModelGroup | undefined>(undefined)
@@ -445,70 +450,101 @@ export const ExtensionStateContextProvider: React.FC<{
 
 	// Subscribe to state updates and UI events using the gRPC streaming API
 	useEffect(() => {
+		const applyStateSnapshot = (stateJson: string) => {
+			if (!stateJson) {
+				return
+			}
+
+			try {
+				const stateData = JSON.parse(stateJson) as ExtensionState
+				setState((prevState) => {
+					// Versioning logic for autoApprovalSettings
+					const incomingVersion = stateData.autoApprovalSettings?.version ?? 1
+					const currentVersion = prevState.autoApprovalSettings?.version ?? 1
+					const shouldUpdateAutoApproval = incomingVersion > currentVersion
+
+					// Route the snapshot's transcript through the convergent-replica reducer:
+					// merge by ts/seq within the same epoch (never truncate), replace on a
+					// newer epoch, ignore stale/older snapshots. Unstamped (classic/legacy)
+					// state defaults to epoch 0 / version 0, which merges.
+					replicaRef.current = reducerApplyStateSnapshot(
+						replicaRef.current,
+						stateData.clineMessages ?? [],
+						stateData.epoch ?? 0,
+						stateData.stateVersion ?? 0,
+						stateData.turnState,
+					)
+					stateData.clineMessages = replicaRef.current.messages
+					// Use the seq-gated turnState from the replica, NOT the raw snapshot's, so a
+					// late/stale snapshot carrying an older phase (e.g. "idle") cannot revert a
+					// newer phase (e.g. "streaming") and hide the Cancel button. Falls back to
+					// undefined for classic/legacy state.
+					stateData.turnState = replicaRef.current.turnState
+
+					const newState = {
+						...stateData,
+						autoApprovalSettings: shouldUpdateAutoApproval
+							? stateData.autoApprovalSettings
+							: prevState.autoApprovalSettings,
+					}
+
+					// Update welcome screen state based on API configuration if welcome view not in progress
+					if (!newState.welcomeViewCompleted && !showWelcome) {
+						setShowWelcome(true)
+						setOnboardingModels(newState.onboardingModels)
+					} else if (newState.welcomeViewCompleted) {
+						setShowWelcome(false)
+						setOnboardingModels(undefined)
+					}
+
+					return newState
+				})
+				didHydrateStateRef.current = true
+				setDidHydrateState(true)
+			} catch (error) {
+				console.error("Error parsing state JSON:", error)
+				console.log("[DEBUG] ERR getting state", error)
+			}
+		}
+
+		const fetchLatestStateFallback = async (reason: string) => {
+			if (didHydrateStateRef.current) {
+				return
+			}
+
+			try {
+				const response = await StateServiceClient.getLatestState(EmptyRequest.create({}))
+				if (response.stateJson) {
+					console.warn(`[ExtensionState] Loaded state via getLatestState fallback (${reason})`)
+					applyStateSnapshot(response.stateJson)
+				}
+			} catch (error) {
+				console.error(`Failed to load state via getLatestState fallback (${reason}):`, error)
+			}
+		}
+
+		const hydrationTimeout = window.setTimeout(() => {
+			void fetchLatestStateFallback("timeout")
+		}, 1500)
+
 		// Set up state subscription
 		stateSubscriptionRef.current = StateServiceClient.subscribeToState(EmptyRequest.create({}), {
 			onResponse: (response: any) => {
 				if (response.stateJson) {
-					try {
-						const stateData = JSON.parse(response.stateJson) as ExtensionState
-						setState((prevState) => {
-							// Versioning logic for autoApprovalSettings
-							const incomingVersion = stateData.autoApprovalSettings?.version ?? 1
-							const currentVersion = prevState.autoApprovalSettings?.version ?? 1
-							const shouldUpdateAutoApproval = incomingVersion > currentVersion
-
-							// Route the snapshot's transcript through the convergent-replica reducer:
-							// merge by ts/seq within the same epoch (never truncate), replace on a
-							// newer epoch, ignore stale/older snapshots. Unstamped (classic/legacy)
-							// state defaults to epoch 0 / version 0, which merges.
-							replicaRef.current = reducerApplyStateSnapshot(
-								replicaRef.current,
-								stateData.clineMessages ?? [],
-								stateData.epoch ?? 0,
-								stateData.stateVersion ?? 0,
-								stateData.turnState,
-							)
-							stateData.clineMessages = replicaRef.current.messages
-							// Use the seq-gated turnState from the replica, NOT the raw snapshot's, so a
-							// late/stale snapshot carrying an older phase (e.g. "idle") cannot revert a
-							// newer phase (e.g. "streaming") and hide the Cancel button. Falls back to
-							// undefined for classic/legacy state.
-							stateData.turnState = replicaRef.current.turnState
-
-							const newState = {
-								...stateData,
-								autoApprovalSettings: shouldUpdateAutoApproval
-									? stateData.autoApprovalSettings
-									: prevState.autoApprovalSettings,
-							}
-
-							// Update welcome screen state based on API configuration if welcome view not in progress
-							if (!newState.welcomeViewCompleted && !showWelcome) {
-								setShowWelcome(true)
-								setOnboardingModels(newState.onboardingModels)
-							} else if (newState.welcomeViewCompleted) {
-								setShowWelcome(false)
-								setOnboardingModels(undefined)
-							}
-
-							setDidHydrateState(true)
-
-							return newState
-						})
-					} catch (error) {
-						console.error("Error parsing state JSON:", error)
-						console.log("[DEBUG] ERR getting state", error)
-					}
+					applyStateSnapshot(response.stateJson)
 				}
 				console.log('[DEBUG] ended "got subscribed state"')
 			},
 			onError: (error: any) => {
 				console.error("Error in state subscription:", error)
+				void fetchLatestStateFallback("subscription error")
 			},
 			onComplete: () => {
 				console.log("State subscription completed")
 			},
 		})
+
+		void fetchLatestStateFallback("initial")
 
 		// Subscribe to MCP button clicked events with webview type
 		mcpButtonUnsubscribeRef.current = UiServiceClient.subscribeToMcpButtonClicked(
@@ -737,6 +773,7 @@ export const ExtensionStateContextProvider: React.FC<{
 
 		// Clean up subscriptions when component unmounts
 		return () => {
+			window.clearTimeout(hydrationTimeout)
 			if (stateSubscriptionRef.current) {
 				stateSubscriptionRef.current()
 				stateSubscriptionRef.current = null

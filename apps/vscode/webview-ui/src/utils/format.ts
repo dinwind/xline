@@ -13,6 +13,19 @@ export function formatLargeNumber(num: number): string {
 	return num.toString()
 }
 
+export function getTotalHistoryTokens(item: {
+	tokensIn?: number
+	tokensOut?: number
+	cacheWrites?: number
+	cacheReads?: number
+}): number {
+	return (item.tokensIn || 0) + (item.tokensOut || 0) + (item.cacheWrites || 0) + (item.cacheReads || 0)
+}
+
+export function formatTokenUsage(totalTokens: number): string {
+	return `${formatLargeNumber(totalTokens)} tokens`
+}
+
 // Helper to format cents as dollars with 2 decimal places
 export function formatDollars(cents?: number): string {
 	if (cents === undefined) {

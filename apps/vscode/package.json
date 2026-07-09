@@ -366,7 +366,7 @@
 		"watch-tests": "tsc -p . -w --outDir out",
 		"check-types": "bun run protos && bunx tsc --noEmit && cd webview-ui && bunx tsc --noEmit",
 		"lint": "biome lint --config-path ./biome.jsonc --no-errors-on-unmatched --files-ignore-unknown=true --diagnostic-level=error && bun run lint:proto",
-		"lint:proto": "bash ./scripts/proto-lint.sh",
+		"lint:proto": "node ./scripts/proto-lint.mjs",
 		"analyze:unused": "bunx --yes knip --config knip.json --include files,exports,types,enumMembers,duplicates",
 		"analyze:unused:prod": "bunx --yes knip --config knip.json --production --include files,exports,types,enumMembers,dependencies",
 		"analyze:unused:fix-exports": "node scripts/remove-unused-exports.mjs --apply",

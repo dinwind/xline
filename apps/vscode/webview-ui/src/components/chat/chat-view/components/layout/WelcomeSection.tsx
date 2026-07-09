@@ -162,6 +162,10 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 					break
 
 				case BannerActionType.SetModel: {
+					if (axgateAuthEnabled) {
+						navigateToAccount()
+						break
+					}
 					const modelId = action.arg || "anthropic/claude-sonnet-4.5"
 					const initialModelTab = action.tab || "recommended"
 					handleFieldsChange({
@@ -185,6 +189,10 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 					break
 
 				case BannerActionType.ShowApiSettings:
+					if (axgateAuthEnabled) {
+						navigateToAccount()
+						break
+					}
 					if (action.arg) {
 						// Pre-select the provider before navigating
 						handleFieldsChange({

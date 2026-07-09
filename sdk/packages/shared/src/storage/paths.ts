@@ -11,6 +11,11 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import type { PluginManifest } from "..";
 import {
+	resolveManifestContextSearchPaths,
+	resolveManifestSkillDirectories,
+	resolveManifestWorkflowSearchPaths,
+} from "./cokodo-manifest";
+import {
 	DEFAULT_INSTRUCTION_SYSTEM,
 	type InstructionSystem,
 } from "./instruction-system";
@@ -386,13 +391,7 @@ export function resolveCokodoRulesSearchPaths(
 	if (!workspacePath) {
 		return [];
 	}
-	const agentRoot = join(workspacePath, AGENT_PROTOCOL_DIR);
-	return dedupePaths([
-		agentRoot,
-		join(agentRoot, "core"),
-		join(agentRoot, "project"),
-		join(agentRoot, "meta"),
-	]);
+	return resolveManifestContextSearchPaths(workspacePath);
 }
 
 /**
@@ -404,11 +403,7 @@ export function resolveCokodoWorkflowsSearchPaths(
 	if (!workspacePath) {
 		return [];
 	}
-	const agentRoot = join(workspacePath, AGENT_PROTOCOL_DIR);
-	return dedupePaths([
-		join(agentRoot, "core", WORKFLOWS_CONFIG_DIRECTORY_NAME),
-		join(agentRoot, "project", "sop"),
-	]);
+	return resolveManifestWorkflowSearchPaths(workspacePath);
 }
 
 /**
@@ -420,7 +415,7 @@ export function resolveCokodoSkillsSearchPaths(
 	if (!workspacePath) {
 		return [];
 	}
-	return [join(workspacePath, AGENT_PROTOCOL_DIR, SKILLS_CONFIG_DIRECTORY_NAME)];
+	return resolveManifestSkillDirectories(workspacePath);
 }
 
 function getWorkspaceSkillDirectories(workspacePath?: string): string[] {

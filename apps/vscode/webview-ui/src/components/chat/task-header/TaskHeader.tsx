@@ -2,12 +2,11 @@ import { ClineMessage } from "@shared/ExtensionMessage"
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
 import React, { useCallback, useLayoutEffect, useMemo, useState } from "react"
 import Thumbnails from "@/components/common/Thumbnails"
-import { getModeSpecificFields } from "@/components/settings/utils/providerUtils"
 import { useExtensionState } from "@/context/ExtensionStateContext"
 import { useNormalizedApiConfiguration } from "@/hooks/useNormalizedApiConfiguration"
-import { useProviderUsageCostDisplay } from "@/hooks/useProviderUsageCostDisplay"
 import { cn } from "@/lib/utils"
 import { getEnvironmentColor } from "@/utils/environmentColors"
+import { formatLargeNumber } from "@/utils/format"
 import CopyTaskButton from "./buttons/CopyTaskButton"
 import DeleteTaskButton from "./buttons/DeleteTaskButton"
 import NewTaskButton from "./buttons/NewTaskButton"
@@ -23,7 +22,6 @@ interface TaskHeaderProps {
 	doesModelSupportPromptCache: boolean
 	cacheWrites?: number
 	cacheReads?: number
-	totalCost: number
 	lastApiReqTotalTokens?: number
 	onClose: () => void
 	onSendMessage?: (command: string, files: string[], images: string[]) => void
@@ -37,13 +35,11 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 	tokensOut,
 	cacheWrites,
 	cacheReads,
-	totalCost,
 	lastApiReqTotalTokens,
 	onClose,
 	onSendMessage,
 }) => {
 	const {
-		apiConfiguration,
 		currentTaskItem,
 		mode,
 		expandTaskHeader: isTaskExpanded,
@@ -84,25 +80,7 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 
 	// Simplified computed values
 	const { selectedModelInfo } = useNormalizedApiConfiguration(mode)
-	const modeFields = getModeSpecificFields(apiConfiguration, mode)
-
-	// Local providers report no cost; the openai-compatible provider can
-	// report cost only when the user has supplied both prices. For every
-	// other provider, the SDK is the source of truth for whether to render
-	// per-task cost: providers with `metadata.usageCostDisplay = "hide"`
-	// (e.g. ChatGPT Plus/Pro subscription) are filtered out here. This
-	// mirrors the CLI's `shouldShowCliUsageCost` consumer and removes the
-	// previous extension-side hard-coded "openai-codex" check.
-	const usageCostDisplay = useProviderUsageCostDisplay(modeFields.apiProvider)
-	const isCostAvailable =
-		(totalCost &&
-			modeFields.apiProvider === "openai" &&
-			modeFields.openAiModelInfo?.inputPrice &&
-			modeFields.openAiModelInfo?.outputPrice) ||
-		(modeFields.apiProvider !== "vscode-lm" &&
-			modeFields.apiProvider !== "ollama" &&
-			modeFields.apiProvider !== "lmstudio" &&
-			usageCostDisplay !== "hide")
+	const totalTokens = (tokensIn || 0) + (tokensOut || 0)
 
 	// Event handlers
 	const toggleTaskExpanded = useCallback(() => setIsTaskExpanded(!isTaskExpanded), [setIsTaskExpanded, isTaskExpanded])
@@ -161,13 +139,11 @@ const TaskHeader: React.FC<TaskHeaderProps> = ({
 						)}
 					</div>
 					<div className="inline-flex items-center justify-end select-none shrink-0">
-						{isCostAvailable && (
-							<div
-								className="mx-1 px-1 py-0.25 rounded-full inline-flex shrink-0 text-badge-background bg-badge-foreground/80 items-center"
-								id="price-tag">
-								<span className="text-xs sm:text-sm">${totalCost?.toFixed(4)}</span>
-							</div>
-						)}
+						<div
+							className="mx-1 px-1 py-0.25 rounded-full inline-flex shrink-0 text-badge-background bg-badge-foreground/80 items-center"
+							id="token-usage-tag">
+							<span className="text-xs sm:text-sm">{formatLargeNumber(totalTokens)} tokens</span>
+						</div>
 						<NewTaskButton className={BUTTON_CLASS} onClick={onClose} />
 					</div>
 				</div>

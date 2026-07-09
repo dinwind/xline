@@ -16,7 +16,7 @@ import { memo, useCallback, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { TaskServiceClient } from "@/services/grpc-client"
-import { formatLargeNumber, formatSize } from "@/utils/format"
+import { formatLargeNumber, formatSize, formatTokenUsage, getTotalHistoryTokens } from "@/utils/format"
 
 type HistoryViewItemProps = {
 	item: HistoryItem
@@ -140,7 +140,7 @@ const HistoryViewItem = ({
 					<div className="flex items-center justify-between w-full">
 						<div className="text-description text-xs uppercase">{formatDate(item.ts)}</div>
 						<div className="self-end flex items-center text-xs">
-							<span className="text-description">${item.totalCost?.toFixed(4) ?? 0}</span>
+							<span className="text-description">{formatTokenUsage(getTotalHistoryTokens(item))}</span>
 							{expanded ? (
 								<ChevronsDownUpIcon className="text-description" />
 							) : (

@@ -1,3 +1,22 @@
+export {
+	COKODO_MANIFEST_FILE_NAME,
+	COKODO_MCP_SERVER_NAME,
+	COKODO_MCP_SNIPPET_REL_PATH,
+	collectManifestFilePaths,
+	detectInstructionSystemForWorkspace,
+	getAgentProtocolRoot,
+	getCokodoManifestPath,
+	getDefaultCokodoMcpServerEntry,
+	hasCokodoAgentProtocol,
+	loadCokodoManifest,
+	loadCokodoMcpServerEntry,
+	resolveManifestContextSearchPaths,
+	resolveManifestSkillDirectories,
+	resolveManifestWorkflowSearchPaths,
+	type CokodoManifest,
+	type CokodoMcpServerConfig,
+	workspaceHasClineInstructions,
+} from "./cokodo-manifest";
 export { resolveExistingFilePath } from "./path-resolution";
 export {
 	AGENT_CONFIG_DIRECTORY_NAME,

@@ -57,11 +57,15 @@ export const AxgateProvider = ({ showModelOptions, isPopup, currentMode }: Axgat
 						selectedModelId={selectedModel.modelId}
 					/>
 					{!isLoading && Object.keys(models).length === 0 ? (
-						<p className="text-xs text-description mt-2 mb-0">
-							No models are permitted for your account. Contact your administrator to assign model access.
-						</p>
+						<div className="flex items-start gap-1.5 mt-2 rounded-sm border border-dashed border-border-panel px-2.5 py-2 text-xs text-description">
+							<span aria-hidden className="codicon codicon-info !text-xs mt-px shrink-0" />
+							<span>
+								No models are permitted for your account. Contact your administrator to assign model access.
+							</span>
+						</div>
 					) : null}
-					<VSCodeButton appearance="secondary" className="mt-2" onClick={() => void refresh()}>
+					<VSCodeButton appearance="secondary" className="mt-2" disabled={isLoading} onClick={() => void refresh()}>
+						<span aria-hidden className="codicon codicon-refresh" slot="start" />
 						Refresh permitted models
 					</VSCodeButton>
 				</>

@@ -117,6 +117,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		}),
 	)
 
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeWorkspaceFolders(() => {
+			const sidebarInstance = WebviewProvider.getInstance()
+			void sidebarInstance?.controller.syncCokodoWorkspaceFromWorkspaceRoot()
+		}),
+	)
+
 	// NOTE: Commands must be added to the internal registry before registering them with VSCode
 	const { commands } = ExtensionRegistryInfo
 

@@ -41,7 +41,29 @@ interface SettingsTab {
 	tooltipText: string
 	headerText: string
 	icon: LucideIcon
-	hidden?: (params?: { user: ClineUser | null; activeOrganization: UserOrganization | null }) => boolean
+	hidden?: (params?: {
+		user: ClineUser | null
+		activeOrganization: UserOrganization | null
+		axgateAuthEnabled: boolean
+	}) => boolean
+}
+
+type SettingsTabContext = {
+	user: ClineUser | null
+	activeOrganization: UserOrganization | null
+	axgateAuthEnabled: boolean
+}
+
+function getVisibleSettingsTabs(context: SettingsTabContext) {
+	return SETTINGS_TABS.filter((tab) => !tab.hidden?.(context))
+}
+
+function resolveSettingsTab(targetSection: string | undefined, context: SettingsTabContext): SettingsTabID {
+	const visibleTabs = getVisibleSettingsTabs(context)
+	if (targetSection && visibleTabs.some((tab) => tab.id === targetSection)) {
+		return targetSection as SettingsTabID
+	}
+	return (visibleTabs[0]?.id ?? "features") as SettingsTabID
 }
 
 const SETTINGS_TABS: SettingsTab[] = [
@@ -51,6 +73,7 @@ const SETTINGS_TABS: SettingsTab[] = [
 		tooltipText: "API Configuration",
 		headerText: "API Configuration",
 		icon: SlidersHorizontal,
+		hidden: ({ axgateAuthEnabled } = { user: null, activeOrganization: null, axgateAuthEnabled: false }) => axgateAuthEnabled,
 	},
 	{
 		id: "features",
@@ -79,7 +102,7 @@ const SETTINGS_TABS: SettingsTab[] = [
 		tooltipText: "Remotely configured fields",
 		headerText: "Remote Config",
 		icon: HardDriveDownload,
-		hidden: ({ activeOrganization } = { user: null, activeOrganization: null }) =>
+		hidden: ({ activeOrganization } = { user: null, activeOrganization: null, axgateAuthEnabled: false }) =>
 			!activeOrganization || !isAdminOrOwner(activeOrganization),
 	},
 	{
@@ -96,7 +119,8 @@ const SETTINGS_TABS: SettingsTab[] = [
 		tooltipText: "Debug Tools",
 		headerText: "Debug",
 		icon: FlaskConical,
-		hidden: ({ user } = { user: null, activeOrganization: null }) => !IS_DEV && !isClineInternalTester(user?.email || ""),
+		hidden: ({ user } = { user: null, activeOrganization: null, axgateAuthEnabled: false }) =>
+			!IS_DEV && !isClineInternalTester(user?.email || ""),
 	},
 ]
 
@@ -137,50 +161,63 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 		[],
 	) // Empty deps - these imports never change
 
-	const { version, environment, settingsInitialModelTab } = useExtensionState()
+	const { version, environment, settingsInitialModelTab, axgateAuthEnabled } = useExtensionState()
 	const { activeOrganization, clineUser } = useClineAuth()
 
-	const [activeTab, setActiveTab] = useState<string>(targetSection || SETTINGS_TABS[0].id)
+	const tabContext = useMemo<SettingsTabContext>(
+		() => ({
+			user: clineUser,
+			activeOrganization,
+			axgateAuthEnabled: axgateAuthEnabled ?? false,
+		}),
+		[activeOrganization, axgateAuthEnabled, clineUser],
+	)
+
+	const [activeTab, setActiveTab] = useState<string>(() => resolveSettingsTab(targetSection, tabContext))
 
 	// Optimized message handler with early returns
-	const handleMessage = useCallback((event: MessageEvent) => {
-		const message: ExtensionMessage = event.data
-		if (message.type !== "grpc_response") {
-			return
-		}
-
-		const grpcMessage = message.grpc_response?.message
-		if (grpcMessage?.key !== "scrollToSettings") {
-			return
-		}
-
-		const tabId = grpcMessage.value
-		if (!tabId) {
-			return
-		}
-
-		// Check if valid tab ID
-		if (SETTINGS_TABS.some((tab) => tab.id === tabId)) {
-			setActiveTab(tabId)
-			return
-		}
-
-		// Fallback to element scrolling
-		requestAnimationFrame(() => {
-			const element = document.getElementById(tabId)
-			if (!element) {
+	const handleMessage = useCallback(
+		(event: MessageEvent) => {
+			const message: ExtensionMessage = event.data
+			if (message.type !== "grpc_response") {
 				return
 			}
 
-			element.scrollIntoView({ behavior: "smooth" })
-			element.style.transition = "background-color 0.5s ease"
-			element.style.backgroundColor = "var(--vscode-textPreformat-background)"
+			const grpcMessage = message.grpc_response?.message
+			if (grpcMessage?.key !== "scrollToSettings") {
+				return
+			}
 
-			setTimeout(() => {
-				element.style.backgroundColor = "transparent"
-			}, 1200)
-		})
-	}, [])
+			const tabId = grpcMessage.value
+			if (!tabId) {
+				return
+			}
+
+			// Check if valid visible tab ID
+			const visibleTabIds = getVisibleSettingsTabs(tabContext).map((tab) => tab.id)
+			if (visibleTabIds.includes(tabId as SettingsTabID)) {
+				setActiveTab(tabId)
+				return
+			}
+
+			// Fallback to element scrolling
+			requestAnimationFrame(() => {
+				const element = document.getElementById(tabId)
+				if (!element) {
+					return
+				}
+
+				element.scrollIntoView({ behavior: "smooth" })
+				element.style.transition = "background-color 0.5s ease"
+				element.style.backgroundColor = "var(--vscode-textPreformat-background)"
+
+				setTimeout(() => {
+					element.style.backgroundColor = "transparent"
+				}, 1200)
+			})
+		},
+		[tabContext],
+	)
 
 	useEvent("message", handleMessage)
 
@@ -193,12 +230,10 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 		}
 	}, [])
 
-	// Update active tab when targetSection changes
+	// Update active tab when targetSection or visibility changes
 	useEffect(() => {
-		if (targetSection) {
-			setActiveTab(targetSection)
-		}
-	}, [targetSection])
+		setActiveTab(resolveSettingsTab(targetSection, tabContext))
+	}, [targetSection, tabContext])
 
 	// Memoized tab item renderer
 	const renderTabItem = useCallback(
@@ -256,7 +291,7 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 					className="shrink-0 flex flex-col overflow-y-auto border-r border-sidebar-background"
 					onValueChange={setActiveTab}
 					value={activeTab}>
-					{SETTINGS_TABS.filter((tab) => !tab.hidden?.({ user: clineUser, activeOrganization })).map(renderTabItem)}
+					{SETTINGS_TABS.filter((tab) => !tab.hidden?.(tabContext)).map(renderTabItem)}
 				</TabList>
 
 				<TabContent className="flex-1 overflow-auto">{ActiveContent}</TabContent>
