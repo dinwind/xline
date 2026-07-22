@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package cline;
+
+import "cline/common.proto";
+
+option go_package = "github.com/cline/grpc-go/cline";
+option java_multiple_files = true;
+option java_package = "bot.cline.proto";
+
+// Axline Feedback Hub client (AuthNexus) — JWT stays on extension host.
+service FeedbackService {
+  rpc getFeedbackAuthState(EmptyRequest) returns (FeedbackAuthState);
+  rpc getFeedbackClientContext(EmptyRequest) returns (FeedbackClientContextResponse);
+  rpc listFeedback(ListFeedbackRequest) returns (ListFeedbackResponse);
+  rpc getFeedback(GetFeedbackRequest) returns (FeedbackItemResponse);
+  rpc createFeedback(CreateFeedbackRequest) returns (FeedbackItemResponse);
+  rpc addFeedbackComment(AddFeedbackCommentRequest) returns (FeedbackItemResponse);
+  rpc getFeedbackAttachment(GetFeedbackAttachmentRequest) returns (FeedbackAttachmentResponse);
+  // Command palette / About entry → open Feedback view (stream).
+  rpc subscribeToFeedbackOpened(EmptyRequest) returns (stream FeedbackOpenEvent);
+}
+
+message FeedbackAuthState {
+  bool authenticated = 1;
+  bool hub_configured = 2;
+  bool using_mock = 3;
+  string error = 4;
+  // Display name of the signed-in Axline account (empty when logged out).
+  string account_display = 5;
+  // Email / username of the signed-in account (empty when unavailable).
+  string account_email = 6;
+}
+
+message FeedbackClientContextResponse {
+  string axline_version = 1;
+  string vscode_version = 2;
+  string ui_kind = 3;
+  string platform = 4;
+  string arch = 5;
+  string app_name = 6;
+  string language = 7;
+  string extension_mode = 8;
+  string error = 9;
+}
+
+message ListFeedbackRequest {
+  // mine | public
+  string scope = 1;
+  int32 page = 2;
+  int32 limit = 3;
+}
+
+message ListFeedbackResponse {
+  repeated FeedbackListItem items = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 limit = 4;
+  string error = 5;
+  // unauthorized | forbidden | not_found | … (FeedbackErrorCode)
+  string error_code = 6;
+}
+
+message FeedbackListItem {
+  string id = 1;
+  int32 number = 2;
+  string type = 3;
+  string title = 4;
+  string status = 5;
+  string status_label = 6;
+  string visibility = 7;
+  string updated_at = 8;
+  string created_at = 9;
+}
+
+message GetFeedbackRequest {
+  int32 number = 1;
+}
+
+message CreateFeedbackRequest {
+  // BUG | FEATURE | QUESTION
+  string type = 1;
+  string title = 2;
+  string body = 3;
+  // JSON object of selected client-context fields
+  string client_context_json = 4;
+  repeated FeedbackAttachmentUpload attachments = 5;
+}
+
+message FeedbackAttachmentUpload {
+  string file_name = 1;
+  string mime_type = 2;
+  bytes data = 3;
+}
+
+message AddFeedbackCommentRequest {
+  int32 number = 1;
+  string body = 2;
+}
+
+message FeedbackItemResponse {
+  FeedbackDetail item = 1;
+  string error = 2;
+  string error_code = 3;
+}
+
+message FeedbackDetail {
+  string id = 1;
+  int32 number = 2;
+  string type = 3;
+  string title = 4;
+  string body = 5;
+  string status = 6;
+  string status_label = 7;
+  string visibility = 8;
+  string author_id = 9;
+  string author_display = 10;
+  string external_pr_url = 11;
+  string release_version = 12;
+  string created_at = 13;
+  string updated_at = 14;
+  string client_context_json = 15;
+  repeated FeedbackCommentProto comments = 16;
+  repeated FeedbackAttachmentProto attachments = 17;
+  bool can_comment = 18;
+}
+
+message FeedbackCommentProto {
+  string id = 1;
+  string author_type = 2;
+  string author_display = 3;
+  string agent_name = 4;
+  string body = 5;
+  string created_at = 6;
+}
+
+message FeedbackAttachmentProto {
+  string id = 1;
+  string mime_type = 2;
+  int64 size_bytes = 3;
+  string display_name = 4;
+  // Authenticated API path only (never /uploads/*)
+  string download_path = 5;
+}
+
+message GetFeedbackAttachmentRequest {
+  string feedback_id = 1;
+  string attachment_id = 2;
+}
+
+message FeedbackAttachmentResponse {
+  string mime_type = 1;
+  string display_name = 2;
+  bytes data = 3;
+  string error = 4;
+  string error_code = 5;
+}
+
+message FeedbackOpenEvent {
+  // list | new
+  string mode = 1;
+}

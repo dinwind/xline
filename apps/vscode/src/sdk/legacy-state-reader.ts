@@ -7,27 +7,26 @@
 // All reads are non-throwing — missing or corrupt files return defaults.
 
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { ClineMessage } from "@shared/ExtensionMessage"
 import { HistoryItem } from "@shared/HistoryItem"
 import { Logger } from "@shared/services/Logger"
 import { GlobalStateAndSettings, Secrets } from "@shared/storage/state-keys"
+import { AXLINE_MCP_SETTINGS_FILE_NAME, LEGACY_CLINE_MCP_SETTINGS_FILE_NAME, resolveExistingDataDir } from "@/shared/axline-dir"
 
 // ---------------------------------------------------------------------------
 // Path resolution
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve the Cline data directory.
- * Priority: CLINE_DATA_DIR env > CLINE_DIR env + "/data" > ~/.cline/data
+ * Resolve the Axline data directory.
+ * Priority: override > CLINE_DATA_DIR env > ~/.axline/data (existing) > legacy ~/.cline/data > ~/.axline/data
  */
 export function resolveDataDir(override?: string): string {
 	if (override) return override
 	if (process.env.CLINE_DATA_DIR) return process.env.CLINE_DATA_DIR
-	const clineDir = process.env.CLINE_DIR || path.join(os.homedir(), ".cline")
-	return path.join(clineDir, "data")
+	return resolveExistingDataDir()
 }
 
 /** Path to globalState.json */
@@ -45,9 +44,14 @@ function taskHistoryPath(dataDir?: string): string {
 	return path.join(resolveDataDir(dataDir), "state", "taskHistory.json")
 }
 
-/** Path to MCP settings file */
+/** Path to MCP settings file (axline name; legacy cline file still readable). */
 function mcpSettingsPath(dataDir?: string): string {
-	return path.join(resolveDataDir(dataDir), "settings", "cline_mcp_settings.json")
+	const settingsDir = path.join(resolveDataDir(dataDir), "settings")
+	const axlinePath = path.join(settingsDir, AXLINE_MCP_SETTINGS_FILE_NAME)
+	if (fs.existsSync(axlinePath)) {
+		return axlinePath
+	}
+	return path.join(settingsDir, LEGACY_CLINE_MCP_SETTINGS_FILE_NAME)
 }
 
 /** Path to a task directory */

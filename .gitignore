@@ -85,3 +85,11 @@ apps/vscode/webview-ui/src/**/*.js.map
 .cline/**/managed.json
 .cline/**/bundle.json
 apps/vscode/tsconfig.test.generated.json
+
+# Cokodo / Python cache under protocol tree
+.agent/**/__pycache__/
+**/__pycache__/
+*.pyc
+apps/vscode/endpoints.json
+apps/vscode/secrets.json
+

@@ -2,7 +2,7 @@
 	"name": "axline",
 	"displayName": "Axline",
 	"description": "Autonomous coding agent right in your IDE, capable of creating/editing files, running commands, using the browser, and more with your permission every step of the way.",
-	"version": "0.1.0",
+	"version": "0.3.5",
 	"icon": "assets/icons/icon.png",
 	"engines": {
 		"vscode": "^1.84.0"
@@ -153,6 +153,12 @@
 				"icon": "$(account)"
 			},
 			{
+				"command": "axline.openFeedback",
+				"title": "Feedback",
+				"category": "Axline",
+				"icon": "$(feedback)"
+			},
+			{
 				"command": "axline.settingsButtonClicked",
 				"title": "Settings",
 				"icon": "$(settings-gear)"
@@ -233,6 +239,16 @@
 				"command": "axline.reconstructTaskHistory",
 				"title": "Reconstruct Task History",
 				"category": "Axline"
+			},
+			{
+				"command": "axline.checkForUpdate",
+				"title": "Check for Updates",
+				"category": "Axline"
+			},
+			{
+				"command": "axline.reportIssue",
+				"title": "Report Issue",
+				"category": "Axline"
 			}
 		],
 		"keybindings": [
@@ -276,6 +292,11 @@
 				},
 				{
 					"command": "axline.accountButtonClicked",
+					"group": "navigation@4",
+					"when": "view == axline.SidebarProvider"
+				},
+				{
+					"command": "axline.openFeedback",
 					"group": "navigation@5",
 					"when": "view == axline.SidebarProvider"
 				},
@@ -342,7 +363,19 @@
 		},
 		"configuration": {
 			"title": "Axline",
-			"properties": {}
+			"properties": {
+				"axline.update.autoCheck": {
+					"type": "boolean",
+					"default": true,
+					"description": "Check AuthNexus for private Axline updates on startup and periodically."
+				},
+				"axline.update.checkIntervalHours": {
+					"type": "number",
+					"default": 24,
+					"minimum": 1,
+					"description": "Hours between private update checks when autoCheck is enabled."
+				}
+			}
 		}
 	},
 	"scripts": {
@@ -364,7 +397,8 @@
 		"clean:all": "bun run clean:build && bun run clean:deps",
 		"compile-tests": "node ./scripts/build-tests.js",
 		"watch-tests": "tsc -p . -w --outDir out",
-		"check-types": "bun run protos && bunx tsc --noEmit && cd webview-ui && bunx tsc --noEmit",
+		"check-types": "bun run protos && bunx tsc --noEmit && cd webview-ui && bunx tsc --noEmit && cd .. && bun run check-webview-boundary",
+		"check-webview-boundary": "node scripts/check-webview-import-boundary.mjs",
 		"lint": "biome lint --config-path ./biome.jsonc --no-errors-on-unmatched --files-ignore-unknown=true --diagnostic-level=error && bun run lint:proto",
 		"lint:proto": "node ./scripts/proto-lint.mjs",
 		"analyze:unused": "bunx --yes knip --config knip.json --include files,exports,types,enumMembers,duplicates",
@@ -398,6 +432,9 @@
 		"build:webview": "bun run protos && cd webview-ui && bun run build",
 		"test:webview": "cd webview-ui && bun run test",
 		"package:vsix": "vsce package --no-dependencies --allow-package-secrets sendgrid --out dist/axline.vsix",
+		"publish:private-vsix": "bun scripts/publish-private-vsix.mjs",
+		"verify:private-update": "bun scripts/verify-private-update.mjs",
+		"verify:axgate-device-identity": "node scripts/verify-axgate-device-identity.mjs",
 		"publish:marketplace": "node scripts/publish-marketplace.mjs",
 		"publish:marketplace:prerelease": "node scripts/publish-marketplace.mjs --pre-release",
 		"publish:marketplace:nightly": "node ./scripts/publish-nightly.mjs",

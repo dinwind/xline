@@ -333,7 +333,7 @@ describe("plugin-config-loader", () => {
 			setHomeDir(home);
 			const workspacePlugins = join(workspace, ".cline", "plugins");
 			const userPlugins = join(home, ".cline", "plugins");
-			const documentsPlugins = join(home, "Documents", "Cline", "Plugins");
+			const documentsPlugins = join(home, "Documents", "Axline", "Plugins");
 			await mkdir(workspacePlugins, { recursive: true });
 			await mkdir(userPlugins, { recursive: true });
 			await mkdir(documentsPlugins, { recursive: true });

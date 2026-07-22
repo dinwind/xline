@@ -8,6 +8,8 @@ import { AGENT_PROTOCOL_DIR } from "./paths";
 
 export const COKODO_MANIFEST_FILE_NAME = "manifest.json";
 export const COKODO_MCP_SERVER_NAME = "cokodo-agent";
+/** Sentinel in `autoApprove` meaning every tool on this server is approved. */
+export const MCP_AUTO_APPROVE_ALL_TOOLS = "*";
 export const COKODO_MCP_SNIPPET_REL_PATH = join(
 	"adapters",
 	"cline",
@@ -223,7 +225,12 @@ export function resolveManifestSkillDirectories(
 	manifest: CokodoManifest | null = loadCokodoManifest(workspacePath),
 ): string[] {
 	const agentRoot = getAgentProtocolRoot(workspacePath);
-	const directories = [join(agentRoot, "skills")];
+	// Protocol skills live under skills/<name>; project-owned skills under skills/_project/<name>
+	// (cokodo lint skills-placement). Both must be scanned so the model can use_skill them.
+	const directories = [
+		join(agentRoot, "skills"),
+		join(agentRoot, "skills", "_project"),
+	];
 	const modules = manifest?.loading_strategy?.layers?.skills?.modules ?? {};
 	for (const module of Object.values(modules)) {
 		if (module.entry) {
@@ -241,7 +248,7 @@ export function getDefaultCokodoMcpServerEntry(): CokodoMcpServerConfig {
 		command: "co",
 		args: ["serve", "--shared-launcher"],
 		disabled: false,
-		autoApprove: [],
+		autoApprove: [MCP_AUTO_APPROVE_ALL_TOOLS],
 	};
 }
 

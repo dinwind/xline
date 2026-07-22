@@ -72,16 +72,21 @@ describe("resolveDataDir", () => {
 		}
 	})
 
-	it("falls back to ~/.cline/data", () => {
+	it("defaults to ~/.axline/data when using a fresh AXLINE_DIR", () => {
 		const originalData = process.env.CLINE_DATA_DIR
+		const originalAxlineDir = process.env.AXLINE_DIR
 		const originalDir = process.env.CLINE_DIR
+		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "axline-data-dir-"))
 		delete process.env.CLINE_DATA_DIR
 		delete process.env.CLINE_DIR
+		process.env.AXLINE_DIR = tempHome
 		try {
-			expect(resolveDataDir()).toBe(path.join(os.homedir(), ".cline", "data"))
+			expect(resolveDataDir()).toBe(path.join(tempHome, "data"))
 		} finally {
 			process.env.CLINE_DATA_DIR = originalData
+			process.env.AXLINE_DIR = originalAxlineDir
 			process.env.CLINE_DIR = originalDir
+			fs.rmSync(tempHome, { recursive: true, force: true })
 		}
 	})
 })
@@ -329,7 +334,7 @@ describe("readMcpSettings", () => {
 		expect(readMcpSettings(tempDir)).toEqual({ mcpServers: {} })
 	})
 
-	it("reads cline_mcp_settings.json from settings/ subdirectory", () => {
+	it("reads axline_mcp_settings.json from settings/ subdirectory", () => {
 		const settings: McpSettingsFile = {
 			mcpServers: {
 				"my-server": {
@@ -344,7 +349,7 @@ describe("readMcpSettings", () => {
 				},
 			},
 		}
-		writeJson(path.join(tempDir, "settings", "cline_mcp_settings.json"), settings)
+		writeJson(path.join(tempDir, "settings", "axline_mcp_settings.json"), settings)
 
 		const result = readMcpSettings(tempDir)
 		expect(Object.keys(result.mcpServers)).toHaveLength(2)
@@ -353,8 +358,17 @@ describe("readMcpSettings", () => {
 		expect(result.mcpServers["remote-server"].disabled).toBe(true)
 	})
 
+	it("falls back to legacy cline_mcp_settings.json when axline file is missing", () => {
+		writeJson(path.join(tempDir, "settings", "cline_mcp_settings.json"), {
+			mcpServers: { legacy: { command: "node" } },
+		})
+
+		const result = readMcpSettings(tempDir)
+		expect(result.mcpServers.legacy.command).toBe("node")
+	})
+
 	it("returns empty mcpServers for corrupt JSON", () => {
-		const filePath = path.join(tempDir, "settings", "cline_mcp_settings.json")
+		const filePath = path.join(tempDir, "settings", "axline_mcp_settings.json")
 		fs.mkdirSync(path.dirname(filePath), { recursive: true })
 		fs.writeFileSync(filePath, "NOT JSON")
 
@@ -409,7 +423,7 @@ describe("readAllLegacyState", () => {
 		writeJson(path.join(tempDir, "state", "taskHistory.json"), [
 			{ id: "task-1", ts: Date.now(), task: "Test", tokensIn: 0, tokensOut: 0, totalCost: 0 },
 		])
-		writeJson(path.join(tempDir, "settings", "cline_mcp_settings.json"), {
+		writeJson(path.join(tempDir, "settings", "axline_mcp_settings.json"), {
 			mcpServers: {
 				"test-server": { command: "node", args: ["mcp.js"] },
 			},

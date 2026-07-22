@@ -7,7 +7,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react"
 import BannerCarousel from "@/components/common/BannerCarousel"
 import WhatsNewModal from "@/components/common/WhatsNewModal"
 import HistoryPreview from "@/components/history/HistoryPreview"
-import { useApiConfigurationHandlers } from "@/components/settings/utils/useApiConfigurationHandlers"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import HomeHeader from "@/components/welcome/HomeHeader"
 import { SuggestedTasks } from "@/components/welcome/SuggestedTasks"
@@ -59,9 +58,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 
 	const { clineUser } = useClineAuth()
 	const {
-		openRouterModels,
 		navigateToSettings,
-		navigateToSettingsModelPicker,
 		navigateToWorktrees,
 		worktreesEnabled,
 		banners,
@@ -69,7 +66,6 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 		axgateAuthEnabled,
 		navigateToAccount,
 	} = useExtensionState()
-	const { handleFieldsChange } = useApiConfigurationHandlers()
 
 	// Open modal once we have welcome banners
 	useEffect(() => {
@@ -162,21 +158,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 					break
 
 				case BannerActionType.SetModel: {
-					if (axgateAuthEnabled) {
-						navigateToAccount()
-						break
-					}
-					const modelId = action.arg || "anthropic/claude-sonnet-4.5"
-					const initialModelTab = action.tab || "recommended"
-					handleFieldsChange({
-						planModeOpenRouterModelId: modelId,
-						actModeOpenRouterModelId: modelId,
-						planModeOpenRouterModelInfo: openRouterModels[modelId],
-						actModeOpenRouterModelInfo: openRouterModels[modelId],
-						planModeApiProvider: "cline",
-						actModeApiProvider: "cline",
-					})
-					navigateToSettingsModelPicker({ targetSection: "api-config", initialModelTab })
+					navigateToAccount()
 					break
 				}
 
@@ -189,18 +171,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 					break
 
 				case BannerActionType.ShowApiSettings:
-					if (axgateAuthEnabled) {
-						navigateToAccount()
-						break
-					}
-					if (action.arg) {
-						// Pre-select the provider before navigating
-						handleFieldsChange({
-							planModeApiProvider: action.arg as any,
-							actModeApiProvider: action.arg as any,
-						})
-					}
-					navigateToSettings("api-config")
+					navigateToAccount()
 					break
 
 				case BannerActionType.ShowFeatureSettings:
@@ -217,14 +188,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 					console.warn("Unknown banner action:", action.action)
 			}
 		},
-		[
-			handleFieldsChange,
-			openRouterModels,
-			navigateToSettings,
-			navigateToSettingsModelPicker,
-			axgateAuthEnabled,
-			navigateToAccount,
-		],
+		[navigateToSettings, axgateAuthEnabled, navigateToAccount],
 	)
 
 	/**
@@ -302,7 +266,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 									</TooltipTrigger>
 									<TooltipContent side="top">
 										Create a new git worktree and open it in a separate window. Great for running parallel
-										Cline tasks.
+										Axline tasks.
 									</TooltipContent>
 								</Tooltip>
 								*/}
@@ -326,7 +290,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 											</button>
 										</TooltipTrigger>
 										<TooltipContent side="bottom">
-											View and manage git worktrees. Great for running parallel Cline tasks.
+											View and manage git worktrees. Great for running parallel Axline tasks.
 										</TooltipContent>
 									</Tooltip>
 								)}

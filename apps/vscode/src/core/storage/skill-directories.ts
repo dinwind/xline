@@ -4,8 +4,9 @@ import {
 	normalizeInstructionSystem,
 	resolveManifestSkillDirectories,
 } from "@cline/shared/storage"
-import os from "os"
+import * as os from "os"
 import * as path from "path"
+import { resolveStorageHomeDir } from "@/shared/axline-dir"
 
 const SKILL_DIRECTORY_NAMES = {
 	clineruleSkillsDir: ".clinerules/skills",
@@ -21,7 +22,7 @@ export type SkillsScanDirectory = {
 }
 
 function getClineHomePath(): string {
-	return path.join(os.homedir(), ".cline")
+	return resolveStorageHomeDir()
 }
 
 function getClineSkillsDirectoryPath(): string {

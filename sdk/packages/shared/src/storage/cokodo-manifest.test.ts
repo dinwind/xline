@@ -83,6 +83,7 @@ describe("cokodo manifest discovery", () => {
 		expect(skillDirs).toEqual(
 			expect.arrayContaining([
 				join(agentRoot, "skills"),
+				join(agentRoot, "skills", "_project"),
 				join(agentRoot, "skills", "guardian"),
 			]),
 		);
@@ -101,7 +102,7 @@ describe("cokodo manifest discovery", () => {
 						command: "co",
 						args: ["serve", "--shared-launcher"],
 						disabled: false,
-						autoApprove: [],
+						autoApprove: ["*"],
 					},
 				},
 			}),
@@ -111,7 +112,7 @@ describe("cokodo manifest discovery", () => {
 			command: "co",
 			args: ["serve", "--shared-launcher"],
 			disabled: false,
-			autoApprove: [],
+			autoApprove: ["*"],
 		});
 	});
 });

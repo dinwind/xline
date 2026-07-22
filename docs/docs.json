@@ -1,7 +1,7 @@
 {
 	"$schema": "https://mintlify.com/docs.json",
 	"theme": "mint",
-	"name": "Cline",
+	"name": "Axline",
 	"description": "AI-powered coding agent for complex work",
 	"colors": {
 		"primary": "#9D4EDD",
@@ -50,14 +50,14 @@
 		],
 		"primary": {
 			"type": "button",
-			"label": "Install Cline",
+			"label": "Install Axline",
 			"href": "https://cline.bot/install?utm_source=website&utm_medium=header"
 		}
 	},
 	"navigation": {
 		"tabs": [
 			{
-				"tab": "Cline",
+				"tab": "Axline",
 				"icon": "robot",
 				"groups": [
 					{
@@ -297,7 +297,7 @@
 								]
 							},
 							{
-								"group": "Control Other Cline Features",
+								"group": "Control Other Axline Features",
 								"pages": [
 									"enterprise-solutions/configuration/infrastructure-configuration/control-other-cline-features/yolo-mode",
 									"enterprise-solutions/configuration/infrastructure-configuration/control-other-cline-features/mcp-server-controls"
@@ -324,7 +324,7 @@
 				"icon": "code",
 				"groups": [
 					{
-						"group": "Cline API",
+						"group": "Axline API",
 						"pages": [
 							"api/overview",
 							"api/getting-started",
@@ -1118,6 +1118,6 @@
 		}
 	],
 	"search": {
-		"prompt": "Search Cline documentation..."
+		"prompt": "Search Axline documentation..."
 	}
 }

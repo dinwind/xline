@@ -2,3 +2,10 @@ title = "Cline SDK secret scanning"
 
 [extend]
 useDefault = true
+
+[allowlist]
+description = "Protocol checksums and release-note metadata (UUIDs, SHA256) are not secrets"
+paths = [
+  '''\.agent/manifest\.json''',
+  '''docs/operations/''',
+]

@@ -5,10 +5,11 @@ import type { ClineMessage, ClineSayTool } from "@shared/ExtensionMessage"
 import type { HistoryItem } from "@shared/HistoryItem"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { useEffect, useMemo, useState } from "react"
-import { expect, userEvent, within } from "storybook/test"
+import { expect, within } from "storybook/test"
 import { ExtensionStateContext, useExtensionState } from "@/context/ExtensionStateContext"
+import AccountView from "./components/account/AccountView"
 import ChatView from "./components/chat/ChatView"
-import OnboardingView from "./components/onboarding/OnboardingView"
+import { ClineAuthProvider } from "./context/ClineAuthContext"
 
 // Mock component that mimics App behavior but works in Storybook
 const MockApp = () => {
@@ -17,7 +18,15 @@ const MockApp = () => {
 	return (
 		<HeroUIProvider>
 			{showWelcome ? (
-				<OnboardingView />
+				<ClineAuthProvider>
+					<AccountView
+						activeOrganization={null}
+						clineUser={null}
+						isWelcomeFlow
+						onDone={() => {}}
+						organizations={null}
+					/>
+				</ClineAuthProvider>
 			) : (
 				<ChatView
 					hideAnnouncement={() => {}}
@@ -42,7 +51,7 @@ const meta: Meta<typeof MockApp> = {
 		docs: {
 			description: {
 				component: `
-The ChatView component is the main interface for interacting with Cline. It provides a comprehensive chat experience with AI assistance, task management, and various tools.
+The ChatView component is the main interface for interacting with Axline. It provides a comprehensive chat experience with AI assistance, task management, and various tools.
 
 **Key Features:**
 - **Task Management**: Create, resume, and manage AI-assisted tasks
@@ -280,26 +289,19 @@ export const Welcome: Story = {
 	parameters: {
 		docs: {
 			description: {
-				story: "The welcome screen shown to new users or when no task is active. Displays quick start options and recent task history.",
+				story: "The first-launch sign-in screen shown before a user has completed welcome setup.",
 			},
 		},
 	},
 	args: {},
-	// More on component testing: https://storybook.js.org/docs/writing-tests/interaction-testing
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement)
-		// Button has vscode-button element name
-		const getStartedButton = canvas.getByText("Get Started for Free")
-		const byokButton = canvas.getByText("Use your own API key")
-		await expect(getStartedButton).toBeInTheDocument()
-		await expect(byokButton).toBeInTheDocument()
-		await userEvent.click(byokButton)
-		await expect(getStartedButton).toBeInTheDocument()
-		await expect(byokButton).not.toBeInTheDocument()
+		await expect(canvas.getByText("Sign in to Axline")).toBeInTheDocument()
+		await expect(canvas.getByText("Sign in")).toBeInTheDocument()
 	},
 }
 
-export const Onboarding: Story = {
+export const FirstLogin: Story = {
 	decorators: [
 		createStoryDecorator({
 			welcomeViewCompleted: false,
@@ -310,73 +312,17 @@ export const Onboarding: Story = {
 	parameters: {
 		docs: {
 			description: {
-				story: "The onboarding flow shown to new users, allowing them to select their preferred AI models and configure initial settings.",
+				story: "The first-launch login screen shown to new users before they sign in.",
 			},
 		},
 	},
-	// More on component testing: https://storybook.js.org/docs/writing-tests/interaction-testing
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement)
 
-		// Step 0: User type selection should be visible
-		const title = canvas.getByText("How will you use Cline?")
-		await expect(title).toBeInTheDocument()
-		const freeUserOption = canvas.getByText("Absolutely Free")
-		const powerUserOption = canvas.getByText("Frontier Model")
-		await expect(freeUserOption).toBeInTheDocument()
-		await expect(powerUserOption).toBeInTheDocument()
-
-		// Select "Free User" option
-		await userEvent.click(freeUserOption)
-
-		// Verify the next button appears
-		const nextButton = canvas.getByText("Continue")
-		await expect(nextButton).toBeInTheDocument()
-
-		// Click next to go to model selection
-		await userEvent.click(nextButton)
-
-		// Step 1: Model selection should be visible
-		// Check for model group headers
-		const otherOptionsHeader = canvas.getByText("Select a free model")
-
-		// At least one should be visible
-		await expect(otherOptionsHeader).toBeInTheDocument()
-
-		// Test search functionality
-		const searchInput = canvas.getByPlaceholderText("Search model...")
-		await expect(searchInput).toBeInTheDocument()
-
-		// Type in search box
-		await userEvent.type(searchInput, "claude")
-
-		// Verify search term is in the input
-		await expect(searchInput).toHaveValue("claude")
-
-		// Clear search
-		await userEvent.clear(searchInput)
-
-		// Verify sign in button appears after model selection
-		const signInButton = canvas.getByText("Create my Account")
-		await expect(signInButton).toBeInTheDocument()
-
-		// Test back navigation
-		const backButton = canvas.getByText("Back")
-		await expect(backButton).toBeInTheDocument()
-		await userEvent.click(backButton)
-
-		// Should be back to user type selection
-		await expect(canvas.getByText("How will you use Cline?")).toBeInTheDocument()
-
-		// Test power user flow
-		await userEvent.click(powerUserOption)
-
-		const continueButton = canvas.getByText("Continue")
-		await userEvent.click(continueButton)
-
-		// Should see model selection again
-		await expect(canvas.getByPlaceholderText("Search model...")).toBeInTheDocument()
-		await userEvent.click(canvas.getByText("Back"))
+		await expect(canvas.getByText("Sign in to Axline")).toBeInTheDocument()
+		await expect(canvas.getByText("Email or username")).toBeInTheDocument()
+		await expect(canvas.getByText("Password")).toBeInTheDocument()
+		await expect(canvas.getByText("Sign in")).toBeInTheDocument()
 	},
 }
 
@@ -409,7 +355,7 @@ export const ActiveConversation: Story = {
 	parameters: {
 		docs: {
 			description: {
-				story: "An active conversation showing a typical interaction with Cline, including task creation, tool usage, and AI responses.",
+				story: "An active conversation showing a typical interaction with Axline, including task creation, tool usage, and AI responses.",
 			},
 		},
 	},
@@ -531,7 +477,7 @@ export const ErrorState: Story = {
 	parameters: {
 		docs: {
 			description: {
-				story: "Shows how Cline handles and displays error messages, helping users understand and resolve issues.",
+				story: "Shows how Axline handles and displays error messages, helping users understand and resolve issues.",
 			},
 		},
 	},
@@ -549,7 +495,7 @@ export const AutoApprovalEnabled: Story = {
 	parameters: {
 		docs: {
 			description: {
-				story: "Shows the interface with auto-approval enabled, allowing Cline to execute certain actions automatically without user confirmation.",
+				story: "Shows the interface with auto-approval enabled, allowing Axline to execute certain actions automatically without user confirmation.",
 			},
 		},
 	},
@@ -582,7 +528,7 @@ export const PlanMode: Story = {
 	parameters: {
 		docs: {
 			description: {
-				story: "Shows Cline in Plan mode, where it focuses on creating detailed plans and discussing approaches before implementation.",
+				story: "Shows Axline in Plan mode, where it focuses on creating detailed plans and discussing approaches before implementation.",
 			},
 		},
 	},
@@ -618,7 +564,7 @@ export const BrowserAutomation: Story = {
 	parameters: {
 		docs: {
 			description: {
-				story: "Shows Cline performing browser automation tasks, including launching browsers, clicking elements, and testing web applications.",
+				story: "Shows Axline performing browser automation tasks, including launching browsers, clicking elements, and testing web applications.",
 			},
 		},
 	},
@@ -743,7 +689,7 @@ export const Followup = quickStory(
 	"Follow-up",
 	"followup",
 	"What would you like me to work on next?",
-	"Shows followup question state where Cline asks for next steps.",
+	"Shows followup question state where Axline asks for next steps.",
 )
 export const ResumeTask = quickStory(
 	"Resume Task",
@@ -772,7 +718,7 @@ export const PlanModeResponse = quickStory(
 	"Plan Mode Response",
 	"plan_mode_respond",
 	"Here's my comprehensive plan for refactoring your React application with TypeScript migration and performance optimization phases.\n\n\n\n\nPhase 1: TypeScript Migration\n1. Set up TypeScript in the project\n2. Rename .js files to .tsx/.ts\n3. Add type definitions for components and props\n4. Fix type errors and ensure type safety\n\nPhase 2: Performance Optimization\n1. Analyze current performance bottlenecks\n2. Implement code-splitting and lazy loading\n3. Optimize rendering with React.memo and useCallback\n4. Minimize bundle size with tree-shaking and minification\n5. Test performance improvements using profiling tools",
-	"Shows plan mode response where Cline presents a detailed plan for user approval.",
+	"Shows plan mode response where Axline presents a detailed plan for user approval.",
 )
 export const CondenseConversation = quickStory(
 	"Condense Conversation",
@@ -784,8 +730,8 @@ export const ReportBug = quickStory(
 	"Report Bug",
 	"report_bug",
 	JSON.stringify({
-		steps_to_reproduce: "1. Open Cline\n2. Start a new task\n3. Observe the error",
-		what_happened: "Cline crashes unexpectedly",
+		steps_to_reproduce: "1. Open Axline\n2. Start a new task\n3. Observe the error",
+		what_happened: "Axline crashes unexpectedly",
 	}),
 	"Shows utility action to report bugs to the GitHub repository.",
 )

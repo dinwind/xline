@@ -1,5 +1,5 @@
 // MCP OAuth state is stored in the shared MCP settings file
-// (~/.cline/data/settings/cline_mcp_settings.json) under each server's `oauth`
+// (~/.axline/data/settings/axline_mcp_settings.json) under each server's `oauth`
 // key, in the format @cline/core (CLI, JetBrains) reads and writes:
 //
 //   { "mcpServers": { "linear": { "transport": {...}, "oauth": { "tokens": {...}, ... } } } }
@@ -111,7 +111,7 @@ class ClineOAuthClientProvider implements OAuthClientProvider {
 			token_endpoint_auth_method: "none",
 			grant_types: ["authorization_code", "refresh_token"],
 			response_types: ["code"],
-			client_name: "Cline",
+			client_name: "Axline",
 		}
 	}
 
@@ -251,7 +251,7 @@ export class McpOAuthManager {
 			const result = await authorizeMcpServerOAuth({
 				serverName,
 				filePath: settingsPath,
-				clientName: "Cline",
+				clientName: "Axline",
 				fetch,
 				openUrl: (url) => openExternal(url),
 				callbackPorts: MCP_OAUTH_CALLBACK_PORTS,

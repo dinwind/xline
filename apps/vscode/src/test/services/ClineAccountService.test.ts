@@ -119,7 +119,7 @@ describe("ClineAccountService.fetchFeaturebaseToken", () => {
 	it("returns undefined when the request throws due to missing auth token", async () => {
 		sandbox
 			.stub(service as unknown as { authenticatedRequest: () => unknown }, "authenticatedRequest")
-			.rejects(new Error("No Cline account auth token found"))
+			.rejects(new Error("No Axline account auth token found"))
 
 		const result = await service.fetchFeaturebaseToken()
 
