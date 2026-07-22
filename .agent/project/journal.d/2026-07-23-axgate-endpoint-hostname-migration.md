@@ -1,0 +1,1 @@
+- [x] Migrate retired `axgate.mtsilicon.com:6343` → `auth.mtsilicon.com:6343` in endpoints load path (fixes AxGate login TLS hostname mismatch for misconfigured `~/.axline/endpoints.json`).
