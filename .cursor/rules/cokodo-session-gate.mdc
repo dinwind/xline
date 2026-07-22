@@ -1,0 +1,39 @@
+---
+description: Before chat work — check cokodo-agent / protocol drift; sync project if needed
+alwaysApply: true
+---
+
+## Session gate (cokodo-agent)
+
+IDE chat has **no true pre-hook**. To avoid manual “请先总结 project 并更新” every time cokodo upgrades, treat the **first turn** as a gate **before** normal task handling.
+
+### 0) Preferred: MCP tool `session_gate` (no shell)
+
+- **Call first**: MCP tool **`session_gate`** — same logic as `co session-init`, returns the **agent instruction block** as tool result (follow it verbatim).
+- Structured: `session_gate(as_json=true)` → JSON with `package_update_available`, `protocol_drift`, `actions`, `prompt`.
+- **Do not** ask the user to run shell if the cokodo MCP server exposes `session_gate`.
+- Fallback when MCP unavailable: `co session-init` / `co session-init -f json`, then steps 1–2 below.
+
+### 1) Check CLI vs PyPI (optional but fast)
+
+- Run: `co version` (triggers background PyPI check; notice may appear on stderr after command exits).
+- Or read cache (24h TTL): `~/.cokodo/cache/update_check.json` — if `latest` is newer than installed `cokodo-agent`, **tell the user** to close IDE and run `pip install --upgrade cokodo-agent` before relying on new protocol behavior.
+
+### 2) Check protocol drift (must when agent was upgraded)
+
+- Run: `co diff` (or `co diff --offline` if no network).
+- If there are changes **or** local manifest version ≠ remote: prefer `co upgrade -y` (or `co upgrade --online -y` when checking against network releases). Use the lower-level `co sync` / `co scaffold` / `co adapt` commands only when you need manual control.
+- After sync: re-read `.agent/project/status.md` and refresh **Quick Reference** / protocol lines if templates changed.
+
+### 3) Then normal session init
+
+- Read `.agent/project/status.md` first (per project-status rule).
+- If **Active change (SDD)** — read `project/changes/<name>/tasks.md` next.
+- Proceed with user request.
+
+### Why this works
+
+- **alwaysApply** rules are injected every conversation → model runs the gate on turn 1 without the user asking.
+- **MCP**: If using cokodo MCP, `get_project_context` should run **after** sync when drift existed, so loaded files match installed protocol.
+
+Do **not** block indefinitely on network; if `co diff` fails, continue with local `.agent/` and note the blocker in reply.
