@@ -1,0 +1,8 @@
+{
+  "id": "20260722-123308-prepare-release-policy",
+  "gate": "prepare-release-policy",
+  "reason": "conftest not installed on release machine",
+  "created_at": "2026-07-22T12:33:08.923433+00:00",
+  "expires_at": "2026-07-29T12:33:08+00:00",
+  "actor": "co prepare-release"
+}
