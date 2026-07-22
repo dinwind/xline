@@ -1,6 +1,6 @@
 # Deployment
 
-> **Instance file**: This file contains project-specific deployment information.
+> Axline phase-1 distribution: private VSIX (local install + AuthNexus software update).
 
 ---
 
@@ -8,102 +8,82 @@
 
 | Environment | URL / Host | Purpose |
 |-------------|-----------|---------|
-| Development | `localhost:[PORT]` | Local development |
-| Staging | [host] | Pre-production testing |
-| Production | [host] | Live service |
+| Local F5 | VS Code Extension Host | Day-to-day debug (no VSIX) |
+| Local VSIX | `apps/vscode/dist/axline.vsix` | Manual install / smoke |
+| AuthNexus (example) | `https://auth.mtsilicon.com` | Private update control plane (HTTPS :443) |
+| AxGate (example) | `https://auth.mtsilicon.com:6343` | Account / device API (HTTPS) |
+
+Exact hosts come from `endpoints.json` / env — do not hardcode secrets in git.
+
+---
+
+## Build artifacts
+
+| Artifact | Path | Notes |
+|----------|------|-------|
+| Base VSIX | `apps/vscode/dist/axline.vsix` | vsce output (standard ZIP) |
+| Enterprise VSIX | `apps/vscode/dist/axline-enterprise.vsix` | AuthNexus STABLE upload target (public endpoints baked in) |
+| SHA256 | from upload/verify scripts | Server computes hash; verify downloads and checks ZIP + SHA-256 |
 
 ---
 
 ## Deployment Commands
 
-### Build for Production
+### Build VSIX (local)
 
-```bash
-[command]
+```powershell
+cd c:\ai_work\axline
+bun run build:vscode
+# or install into VS Code:
+bun run install:vscode
 ```
 
-### Deploy
+### Publish to AuthNexus (private update)
 
-```bash
-[command]
+```powershell
+# Standard private release (recommended)
+bun apps/vscode/scripts/release-private-vsix.mjs
+```
+
+**Important:** Do not package secrets into VSIX; AuthNexus uploads **enterprise** VSIX (valid ZIP). Do not send `fileSize`/`status` in upload API.
+
+Full SOP: `.agent/project/sop/axline-private-update.md`  
+Pitfalls: `.agent/project/sop/enterprise-vsix-repack-pitfalls.md`  
+Spec: `.agent/project/specs/axline-private-update.md`
+
+### Verify update chain
+
+```powershell
+bun apps/vscode/scripts/verify-private-update.mjs
 ```
 
 ### Rollback
 
-```bash
-[command]
-```
+- Reinstall previous VSIX / AuthNexus prior release
+- Tag baseline: see `version-state.toml` → `rollback_tag` (e.g. `vscode/v0.2.2`)
 
 ---
 
 ## Verification Checklist
 
-After each deployment, complete the following checks:
-
-- [ ] Application starts without errors
-- [ ] Health check endpoint responds (if applicable)
-- [ ] Core user flow works (smoke test)
-- [ ] No new errors in logs
-- [ ] Performance is within acceptable range
-
-### Smoke Test Script (if available)
-
-```bash
-[command or script path]
-```
+- [ ] `node scripts/verify-versions.mjs` (package.json ↔ version-state)
+- [ ] `bun run build:sdk` then `apps/vscode` `package` (or `build:vscode`)
+- [ ] `check-webview-boundary` clean
+- [ ] VSIX installs; Activity Bar shows Axline
+- [ ] `release-private-vsix.mjs` or equivalent: base + enterprise VSIX layout OK
+- [ ] `verify-private-update.mjs`: `Download: OK (valid VSIX layout)` + `Integrity: OK`
+- [ ] Client E2E: **Check for Updates** → install → Reload
+- [ ] VSIX does **not** contain enrollment secrets (`preflight-publish` blocks `apps/vscode/endpoints.json`)
+- [ ] No `endpoints.json` / enrollment codes in git
 
 ---
 
-## Release State Handoff
+## Related
 
-If this project uses structured version governance, keep deployment and governance state in sync:
-
-1. Freeze the selected track with `co prepare-release --track [track-name] --apply`
-2. Update the canonical version source and sync derived files
-3. Run the production build/deploy flow in this document
-4. Create and push the release tag according to `project/sop/release.md`
-5. Record the final released state with `co cut-release --track [track-name] --apply`
-
-CI/CD pipelines should treat `co cut-release` as the last state-recording step, not as a replacement for deployment logic.
+- Commands: `project/commands.md`
+- Versioning: `project/versioning.md`
+- Release SOP: `project/sop/release.md`
 
 ---
 
-## Infrastructure
-
-### Services
-
-| Service | Technology | Port | Notes |
-|---------|-----------|------|-------|
-| [Service 1] | [Tech] | [Port] | [Notes] |
-
-### Configuration Files
-
-| File | Purpose |
-|------|---------|
-| [config file] | [Purpose] |
-
----
-
-## Access Information
-
-| Item | Value |
-|------|-------|
-| SSH | `[user@host]` |
-| Deploy Path | `[path]` |
-| Log Path | `[path]` |
-
-> **Security Note**: Do not store credentials in this file. Use environment variables or secret management.
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-| Symptom | Likely Cause | Resolution |
-|---------|-------------|------------|
-| [Symptom] | [Cause] | [Fix] |
-
----
-
-*Last updated: [DATE]*
+*Last updated: 2026-07-15*

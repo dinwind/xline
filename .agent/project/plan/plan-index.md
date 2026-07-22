@@ -21,7 +21,8 @@
 
 | Plan | File | Summary | Status |
 |------|------|---------|--------|
-| *(add rows as you create plans)* | | | |
+| cokodo-agent 改进提案（Axline 反馈） | `cokodo-agent-improvements-from-axline.md` | 半初始化 sync/manifest、诊断、pycache、MCP cwd、skill 模板与双根约定；供合入 agent_protocol 评审 | Proposed |
+| AuthNexus Feedback Hub 客户端 | `authnexus-feedback-client.md` | v0.2.1：A0/A1 实施中（FeedbackClient + Webview + 命令入口）；HTTPS 可达性见 A0 报告 | Implementing |
 
 ---
 

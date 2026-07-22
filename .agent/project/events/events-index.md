@@ -20,7 +20,9 @@
 
 | Event | File | Kind | Targets | Status | Updated | Summary |
 |-------|------|------|---------|--------|---------|---------|
-| *(add rows as you create events)* | | | | | | |
+| AuthNexus HTTPS :443 | `2026-07-21-authnexus-https-443.md` | infra | project:AuthNexus, project:Axline | open | 2026-07-21 | AuthNexus base `https://auth.mtsilicon.com` (:443); retire `:3443` |
+| Feedback attachment MIME docs | `2026-07-17-feedback-attachment-mime-docs.md` | api-schema | project:AuthNexus | open | 2026-07-17 | Hub: images + logs/docs; max 10 MB/file |
+
 
 ---
 
