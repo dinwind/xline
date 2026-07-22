@@ -4,7 +4,8 @@ title = "Cline SDK secret scanning"
 useDefault = true
 
 [allowlist]
-description = "Cokodo protocol manifest stores SHA-256 checksums, not secrets"
+description = "Protocol checksums and release-note metadata (UUIDs, SHA256) are not secrets"
 paths = [
   '''\.agent/manifest\.json''',
+  '''docs/operations/''',
 ]
