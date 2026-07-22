@@ -72,7 +72,7 @@ export class VscodeDiffViewProvider extends DiffViewProvider {
 						query: Buffer.from(this.originalContent ?? "").toString("base64"),
 					}),
 					uri,
-					`${fileName}: ${fileExists ? "Original ↔ Cline's Changes" : "New File"} (Editable)`,
+					`${fileName}: ${fileExists ? "Original ↔ Axline's Changes" : "New File"} (Editable)`,
 					{
 						preserveFocus: true,
 					},
@@ -190,7 +190,7 @@ export class VscodeDiffViewProvider extends DiffViewProvider {
 		return this.activeDiffEditor.document.getText()
 	}
 
-	protected override async saveDocument(): Promise<Boolean> {
+	protected override async saveDocument(): Promise<boolean> {
 		if (!this.activeDiffEditor) {
 			return false
 		}

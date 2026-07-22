@@ -75,7 +75,7 @@ export async function migrateCustomInstructionsToGlobalRules(context: vscode.Ext
 		const customInstructions = (await context.globalState.get("customInstructions")) as string | undefined
 
 		if (customInstructions?.trim()) {
-			Logger.log("Migrating custom instructions to global Cline rules...")
+			Logger.log("Migrating custom instructions to global Axline rules...")
 
 			// Create global .clinerules directory if it doesn't exist
 			const globalRulesDir = await ensureRulesDirectoryExists()
@@ -107,7 +107,7 @@ export async function migrateCustomInstructionsToGlobalRules(context: vscode.Ext
 
 			// Remove customInstructions from global state only after successful file creation
 			await context.globalState.update("customInstructions", undefined)
-			Logger.log("Successfully migrated custom instructions to global Cline rules")
+			Logger.log("Successfully migrated custom instructions to global Axline rules")
 		}
 	} catch (error) {
 		Logger.error("Failed to migrate custom instructions to global rules:", error)
@@ -219,6 +219,27 @@ export async function cleanupMcpMarketplaceCatalogFromGlobalState(context: vscod
 		Logger.error("Failed to cleanup mcpMarketplaceCatalog from global state:", error)
 		// Continue execution - cleanup failure shouldn't break extension startup
 	}
+}
+
+export const LEGACY_VSCODE_CLEANUP_DONE_KEY = "__axlineLegacyVscodeCleanupDone"
+
+/**
+ * Returns true when one-time VS Code memento → file-backed legacy cleanup has finished.
+ * Uses a dedicated sentinel so we do not rely on file-backed keys (e.g. lastShownAnnouncementId).
+ */
+export function hasCompletedLegacyVscodeCleanup(context: vscode.ExtensionContext): boolean {
+	if (context.globalState.get(LEGACY_VSCODE_CLEANUP_DONE_KEY) === true) {
+		return true
+	}
+	// Back-compat: older builds used lastShownAnnouncementId in VS Code memento as the guard.
+	if (context.globalState.get("lastShownAnnouncementId") !== undefined) {
+		return true
+	}
+	return false
+}
+
+export async function markLegacyVscodeCleanupDone(context: vscode.ExtensionContext): Promise<void> {
+	await context.globalState.update(LEGACY_VSCODE_CLEANUP_DONE_KEY, true)
 }
 
 export async function cleanupOldApiKey(context: vscode.ExtensionContext) {

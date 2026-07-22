@@ -22,7 +22,10 @@ import {
 
 const DEPRECATED_CONFIG_DIR = ".clinerules";
 const CLINE_CONFIG_DIR = ".cline";
+const AXLINE_CONFIG_DIR = ".axline";
+/** Agents Skills convention (Cline/marketplace). Not the Cokodo protocol root. */
 const LEGACY_AGENT_SKILLS_CONFIG_DIR = ".agents";
+/** Cokodo agent protocol root (rules / workflows / skills / project context). */
 export const AGENT_PROTOCOL_DIR = ".agent";
 
 export const AGENT_CONFIG_DIRECTORY_NAME = "agents";
@@ -33,7 +36,10 @@ export const WORKFLOWS_CONFIG_DIRECTORY_NAME = "workflows";
 export const PLUGINS_DIRECTORY_NAME = "plugins";
 export const AGENTS_RULES_FILE_NAME = "AGENTS.md";
 
-export const CLINE_MCP_SETTINGS_FILE_NAME = "cline_mcp_settings.json";
+export const AXLINE_MCP_SETTINGS_FILE_NAME = "axline_mcp_settings.json";
+/** @deprecated Use AXLINE_MCP_SETTINGS_FILE_NAME */
+export const CLINE_MCP_SETTINGS_FILE_NAME = AXLINE_MCP_SETTINGS_FILE_NAME;
+export const LEGACY_CLINE_MCP_SETTINGS_FILE_NAME = "cline_mcp_settings.json";
 export const CLINE_CONNECTOR_SETTINGS_FILE_NAME = "settings.json";
 
 function resolveDefaultHomeDir(): string {
@@ -107,15 +113,19 @@ export function resolveClineDir(): string {
 	if (CLINE_DIR) {
 		return CLINE_DIR;
 	}
+	const axlineDir = process.env.AXLINE_DIR?.trim();
+	if (axlineDir) {
+		return axlineDir;
+	}
 	const envDir = process.env.CLINE_DIR?.trim();
 	if (envDir) {
 		return envDir;
 	}
-	return join(HOME_DIR, ".cline");
+	return join(HOME_DIR, AXLINE_CONFIG_DIR);
 }
 
 export function resolveDocumentsClineDirectoryPath(): string {
-	return join(HOME_DIR, "Documents", "Cline");
+	return join(HOME_DIR, "Documents", "Axline");
 }
 
 type DocumentsExtensionName =
@@ -303,11 +313,13 @@ export function resolveGlobalSettingsPath(): string {
 }
 
 export function resolveMcpSettingsPath(): string {
-	const explicitPath = process.env.CLINE_MCP_SETTINGS_PATH?.trim();
+	const explicitPath =
+		process.env.AXLINE_MCP_SETTINGS_PATH?.trim() ||
+		process.env.CLINE_MCP_SETTINGS_PATH?.trim();
 	if (explicitPath) {
 		return explicitPath;
 	}
-	return join(resolveClineDataDir(), "settings", CLINE_MCP_SETTINGS_FILE_NAME);
+	return join(resolveClineDataDir(), "settings", AXLINE_MCP_SETTINGS_FILE_NAME);
 }
 
 function dedupePaths(paths: ReadonlyArray<string>): string[] {

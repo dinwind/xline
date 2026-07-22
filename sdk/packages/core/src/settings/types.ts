@@ -1,3 +1,4 @@
+import type { InstructionSystem } from "@cline/shared/storage";
 import type { UserInstructionConfigService } from "../extensions/config";
 import type { BuiltinToolAvailabilityContext } from "../extensions/tools";
 
@@ -48,6 +49,8 @@ export interface CoreSettingsListInput {
 	workspaceRoot?: string;
 	userInstructionService?: UserInstructionConfigService;
 	availabilityContext?: BuiltinToolAvailabilityContext;
+	/** When omitted, defaults to cokodo (`.agent/`), not legacy `.agents/`. */
+	instructionSystem?: InstructionSystem;
 }
 
 export interface CoreSettingsToggleInput extends CoreSettingsListInput {

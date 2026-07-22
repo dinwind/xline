@@ -225,7 +225,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			globalWorkflowToggles,
 			remoteWorkflowToggles,
 			remoteConfigSettings,
-			navigateToSettingsModelPicker,
+			navigateToAccount,
 			mcpServers,
 			axgateAuthEnabled,
 		} = useExtensionState()
@@ -1116,7 +1116,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		}, [inputValue, handleInputChange, updateHighlights])
 
 		const handleModelButtonClick = () => {
-			navigateToSettingsModelPicker({ targetSection: "api-config" })
+			navigateToAccount()
 		}
 
 		// Get model display name
@@ -1677,7 +1677,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 								className="text-xs px-2 flex flex-col gap-1"
 								hidden={shownTooltipMode === null}
 								side="top">
-								{`In ${shownTooltipMode === "act" ? "Act" : "Plan"}  mode, Cline will ${shownTooltipMode === "act" ? "complete the task immediately" : "gather information to architect a plan"}`}
+								{`In ${shownTooltipMode === "act" ? "Act" : "Plan"}  mode, Axline will ${shownTooltipMode === "act" ? "complete the task immediately" : "gather information to architect a plan"}`}
 								<p className="text-description/80 text-xs mb-0">
 									Toggle w/ <kbd className="text-muted-foreground mx-1">{togglePlanActKeys}</kbd>
 								</p>

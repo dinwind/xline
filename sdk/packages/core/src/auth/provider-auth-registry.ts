@@ -12,6 +12,7 @@ import {
 import { getValidOpenAICodexCredentials, loginOpenAICodex } from "./codex";
 import {
 	DEFAULT_AXLINE_AUTH_APP_ID,
+	formatAxgateApiKey,
 	getValidAxgateCredentials,
 	stripAxgateTokenPrefix,
 } from "./axgate";
@@ -240,6 +241,7 @@ const providerAuthHandlers = [
 	}),
 	createOAuthHandler({
 		providerId: "axgate",
+		formatAccessToken: formatAxgateApiKey,
 		login: ({ settings, callbacks }) => {
 			void callbacks;
 			const baseUrl = settings?.baseUrl?.replace(/\/v1\/?$/, "")?.trim();

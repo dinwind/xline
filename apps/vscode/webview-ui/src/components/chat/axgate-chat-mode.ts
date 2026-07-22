@@ -38,7 +38,8 @@ export function deriveAxgateChatMode(mode: Mode, provider: string | undefined, m
 	if (mode === "plan") {
 		return "plan"
 	}
-	if (provider === "axgate" && modelId === "auto") {
+	const normalized = modelId?.trim().toLowerCase()
+	if (provider === "axgate" && (!normalized || normalized === "auto" || normalized === "ax_auto")) {
 		return "auto"
 	}
 	return "agent"

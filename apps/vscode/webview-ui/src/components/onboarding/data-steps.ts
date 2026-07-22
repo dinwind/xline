@@ -13,11 +13,11 @@ type UserTypeSelection = {
 
 export const STEP_CONFIG = {
 	0: {
-		title: "How will you use Cline?",
+		title: "How will you use Axline?",
 		description: "Select an option below to get started.",
 		buttons: [
 			{ text: "Continue", action: "next", variant: "default" },
-			{ text: "Login to Cline", action: "signin", variant: "secondary" },
+			{ text: "Login to Axline", action: "signin", variant: "secondary" },
 		],
 	},
 	[NEW_USER_TYPE.CLINE_PASS]: {
@@ -64,7 +64,7 @@ const CLINE_PASS_USER_TYPE_SELECTION: UserTypeSelection = {
 const BASE_USER_TYPE_SELECTIONS: UserTypeSelection[] = [
 	{ title: "Absolutely Free", description: "Get started at no cost", type: NEW_USER_TYPE.FREE },
 	{ title: "Frontier Model", description: "Claude, GPT Codex, Gemini, etc.", type: NEW_USER_TYPE.POWER },
-	{ title: "Bring my own API key", description: "Use Cline with your provider of choice", type: NEW_USER_TYPE.BYOK },
+	{ title: "Bring my own API key", description: "Use Axline with your provider of choice", type: NEW_USER_TYPE.BYOK },
 ]
 
 /** Free leads (and is the default); ClinePass is inserted second when its models are available. */

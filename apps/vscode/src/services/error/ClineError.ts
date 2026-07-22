@@ -6,6 +6,21 @@ import {
 import { serializeError } from "serialize-error"
 import { CLINE_ACCOUNT_AUTH_ERROR_MESSAGE } from "../../shared/ClineAccount"
 
+const AXGATE_DEVICE_ERROR_CODES = new Set([
+	"DEVICE_REQUIRED",
+	"DEVICE_PENDING",
+	"DEVICE_REVOKED",
+	"DEVICE_CREDENTIAL_INVALID",
+	"DEVICE_ALREADY_REGISTERED",
+	"DEVICE_QUOTA_EXCEEDED",
+	"CLIENT_VERSION_UNSUPPORTED",
+	"CLIENT_IDENTITY_INVALID",
+])
+
+function isAxgateDeviceErrorCode(code?: string): boolean {
+	return !!code && AXGATE_DEVICE_ERROR_CODES.has(code)
+}
+
 export enum ClineErrorType {
 	Auth = "auth",
 	RateLimit = "rateLimit",
@@ -14,6 +29,8 @@ export enum ClineErrorType {
 	QuotaExceeded = "quotaExceeded",
 	Entitlement = "entitlement",
 	OrgClinePassRestriction = "orgClinePassRestriction",
+	DeviceAccess = "deviceAccess",
+	VersionUnsupported = "versionUnsupported",
 }
 
 interface ErrorDetails {
@@ -183,9 +200,21 @@ export class ClineError extends Error {
 			return ClineErrorType.Entitlement
 		}
 
-		// Check auth errors
+		if (code === "CLIENT_VERSION_UNSUPPORTED" || status === 426) {
+			return ClineErrorType.VersionUnsupported
+		}
+
+		if (isAxgateDeviceErrorCode(code)) {
+			return ClineErrorType.DeviceAccess
+		}
+
+		// Check auth errors — but not AxGate device/version gates (403/426 with device codes).
 		const isAuthStatus = status !== undefined && status > 400 && status < 429
-		if (code === "ERR_BAD_REQUEST" || err instanceof AuthInvalidTokenError || isAuthStatus) {
+		if (
+			code === "ERR_BAD_REQUEST" ||
+			err instanceof AuthInvalidTokenError ||
+			(isAuthStatus && !isAxgateDeviceErrorCode(code) && code !== "CLIENT_VERSION_UNSUPPORTED")
+		) {
 			return ClineErrorType.Auth
 		}
 

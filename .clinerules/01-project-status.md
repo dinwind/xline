@@ -1,0 +1,36 @@
+---
+alwaysApply: true
+description: Project status — read before work, update at checkpoints
+---
+
+## Read First
+
+Your FIRST action in every conversation MUST be reading `.agent/project/status.md`.
+This file contains the current development state: goals, active tasks, blockers, and context from the previous session.
+Do NOT proceed with any task until you have read it.
+
+If status includes **Active change (SDD)** with a current change, read `.agent/project/changes/<name>/tasks.md` next — that directory is the working scope until `co change clear` or archive.
+
+For deployment and infrastructure tasks, also read `.agent/project/deploy.md`.
+For available project commands, check `.agent/project/commands.md`.
+
+## Update at Checkpoints
+
+You MUST keep session state accurate at these checkpoints:
+
+1. **After completing a task** the user requested.
+2. **Before git commit (product PRs)** — write completion to `project/journal.d/`; do **not** edit `status.md` in product PRs. Batch `status.md` via `chore/agent-status-*` + `co journal-flush`.
+3. **When switching tasks** — update before moving to a different task.
+4. **When a blocker is found or resolved** — record immediately (journal fragment or agent-status PR).
+5. **When the user signals done** — "done", "thanks", "commit", etc.
+
+What to update in agent-status work: Task Board, Blockers, Session Context. **Recently Completed**: use journal fragments + `co journal-flush` only (see `.agent/core/instructions.md` §7.4).
+
+Do NOT wait until "session end" — update during work. Small frequent updates are better than one that never happens.
+
+
+- **Agent Git/PR (three hard rules)** — see `project/AGENT-GIT-PR-WORKFLOW.md` and `project/sop/agent-git-pr-collaboration.md`:
+  1. One PR per branch; delete the remote head after merge.
+  2. Product PRs must not edit `status.md`; write `project/journal.d/` fragments; sync via `chore/agent-status-*` + `co journal-flush`.
+  3. Before merge: integrate the latest default branch; PR must be mergeable; re-approve after new pushes if required.
+

@@ -10,6 +10,10 @@
 CLAUDE.local.md
 out/
 dist-standalone/
+# Only ship the esbuild outputs — never nest prior VSIX / inspect trees into the package.
+dist/**
+!dist/extension.js
+!dist/axline.zip
 node_modules/
 # Nested workspace-member node_modules (bun links these under each package).
 # Scoped to the sub-package dirs so it doesn't shadow the top-level

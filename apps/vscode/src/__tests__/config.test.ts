@@ -17,19 +17,28 @@ mock.module("node:os", osMock)
 
 import os from "os"
 import { ClineConfigurationError, ClineEndpoint, ClineEnv, Environment } from "../config"
+import { getUpdateConfig } from "../services/update/config"
 
 describe("ClineEndpoint configuration", () => {
 	let sandbox: sinon.SinonSandbox
 	let tempDir: string
 	let originalHomedir: typeof os.homedir
 
+	let originalAxlineDir: string | undefined
+	let originalClineDir: string | undefined
+
 	beforeEach(async () => {
 		sandbox = sinon.createSandbox()
 		tempDir = path.join(os.tmpdir(), `config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
 		await fs.mkdir(tempDir, { recursive: true })
 
-		// Create .cline directory
-		await fs.mkdir(path.join(tempDir, ".cline"), { recursive: true })
+		// Create .axline directory (primary user config home)
+		await fs.mkdir(path.join(tempDir, ".axline"), { recursive: true })
+
+		originalAxlineDir = process.env.AXLINE_DIR
+		originalClineDir = process.env.CLINE_DIR
+		process.env.AXLINE_DIR = path.join(tempDir, ".axline")
+		delete process.env.CLINE_DIR
 
 		// Stub os.homedir to return our temp directory (via mock.module homedirStub)
 		originalHomedir = os.homedir
@@ -44,6 +53,16 @@ describe("ClineEndpoint configuration", () => {
 
 	afterEach(async () => {
 		sandbox.restore()
+		if (originalAxlineDir === undefined) {
+			delete process.env.AXLINE_DIR
+		} else {
+			process.env.AXLINE_DIR = originalAxlineDir
+		}
+		if (originalClineDir === undefined) {
+			delete process.env.CLINE_DIR
+		} else {
+			process.env.CLINE_DIR = originalClineDir
+		}
 		// Reset singleton state
 		;(ClineEndpoint as any)._instance = null
 		;(ClineEndpoint as any)._initialized = false
@@ -62,7 +81,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(validConfig), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(validConfig), "utf8")
 
 			await ClineEndpoint.initialize(tempDir)
 
@@ -73,8 +92,8 @@ describe("ClineEndpoint configuration", () => {
 			config.environment.should.equal(Environment.selfHosted)
 		})
 
-		it("should work without endpoints.json (standard mode)", async () => {
-			// No endpoints.json file exists
+		it("should work without full on-premise endpoints (production defaults)", async () => {
+			// Fresh install seeds axgate-only ~/.axline/endpoints.json
 
 			await ClineEndpoint.initialize(tempDir)
 
@@ -85,6 +104,32 @@ describe("ClineEndpoint configuration", () => {
 			config.apiBaseUrl.should.equal("https://api.cline.bot")
 		})
 
+		it("should auto-create ~/.axline/endpoints.json with defaults on first run", async () => {
+			const endpointsPath = path.join(tempDir, ".axline", "endpoints.json")
+			await fs.unlink(endpointsPath).catch(() => {})
+
+			await ClineEndpoint.initialize(tempDir)
+
+			const content = JSON.parse(await fs.readFile(endpointsPath, "utf8"))
+			content.axgateBaseUrl.should.equal("https://auth.mtsilicon.com:6343")
+			ClineEndpoint.getEndpointsExtension()?.axgateBaseUrl?.should.equal("https://auth.mtsilicon.com:6343")
+		})
+
+		it("should migrate legacy ~/.cline/endpoints.json into ~/.axline/endpoints.json", async () => {
+			const legacyConfig = {
+				axgateBaseUrl: "https://legacy.example:6100",
+			}
+
+			await fs.mkdir(path.join(tempDir, ".cline"), { recursive: true })
+			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(legacyConfig), "utf8")
+
+			await ClineEndpoint.initialize(tempDir)
+
+			const axlinePath = path.join(tempDir, ".axline", "endpoints.json")
+			const content = JSON.parse(await fs.readFile(axlinePath, "utf8"))
+			content.axgateBaseUrl.should.equal("https://legacy.example:6100")
+		})
+
 		it("should accept URLs with ports", async () => {
 			const validConfig = {
 				appBaseUrl: "http://localhost:3000",
@@ -92,7 +137,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "http://localhost:8080/mcp",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(validConfig), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(validConfig), "utf8")
 
 			await ClineEndpoint.initialize(tempDir)
 
@@ -109,7 +154,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://proxy.enterprise.com/cline/mcp",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(validConfig), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(validConfig), "utf8")
 
 			await ClineEndpoint.initialize(tempDir)
 
@@ -120,7 +165,7 @@ describe("ClineEndpoint configuration", () => {
 
 	describe("invalid JSON handling", () => {
 		it("should throw ClineConfigurationError for invalid JSON syntax", async () => {
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), "{ invalid json }", "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), "{ invalid json }", "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -132,7 +177,7 @@ describe("ClineEndpoint configuration", () => {
 		})
 
 		it("should throw ClineConfigurationError for truncated JSON", async () => {
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), '{"appBaseUrl": "https://test.com"', "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), '{"appBaseUrl": "https://test.com"', "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -144,7 +189,7 @@ describe("ClineEndpoint configuration", () => {
 		})
 
 		it("should throw ClineConfigurationError for empty file", async () => {
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), "", "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), "", "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -155,7 +200,7 @@ describe("ClineEndpoint configuration", () => {
 		})
 
 		it("should throw ClineConfigurationError for non-object JSON", async () => {
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), '"just a string"', "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), '"just a string"', "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -167,20 +212,19 @@ describe("ClineEndpoint configuration", () => {
 		})
 
 		it("should throw ClineConfigurationError for array JSON", async () => {
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), "[]", "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), "[]", "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
 				throw new Error("Should have thrown")
 			} catch (error: any) {
 				error.should.be.instanceof(ClineConfigurationError)
-				// Arrays pass the object check but fail on required fields
-				error.message.should.containEql("Missing required field")
+				error.message.should.containEql("must contain a JSON object")
 			}
 		})
 
 		it("should throw ClineConfigurationError for null JSON", async () => {
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), "null", "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), "null", "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -199,7 +243,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -216,7 +260,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -233,7 +277,7 @@ describe("ClineEndpoint configuration", () => {
 				apiBaseUrl: "https://api.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -245,7 +289,7 @@ describe("ClineEndpoint configuration", () => {
 		})
 
 		it("should throw ClineConfigurationError when all fields are missing", async () => {
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), "{}", "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), "{}", "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -263,7 +307,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -281,7 +325,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -299,7 +343,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -317,7 +361,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -337,7 +381,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -355,7 +399,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -373,7 +417,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -392,7 +436,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			try {
 				await ClineEndpoint.initialize(tempDir)
@@ -412,7 +456,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			await ClineEndpoint.initialize(tempDir)
 
@@ -435,7 +479,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			await ClineEndpoint.initialize(tempDir)
 
@@ -478,7 +522,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 
 			await ClineEndpoint.initialize(tempDir)
 
@@ -493,7 +537,7 @@ describe("ClineEndpoint configuration", () => {
 				mcpBaseUrl: "https://custom-mcp.internal/v1",
 			}
 
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(customConfig), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(customConfig), "utf8")
 
 			await ClineEndpoint.initialize(tempDir)
 
@@ -538,14 +582,13 @@ describe("ClineEndpoint configuration", () => {
 				apiBaseUrl: "https://api.enterprise.com",
 				mcpBaseUrl: "https://mcp.enterprise.com",
 			}
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(config), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(config), "utf8")
 			await ClineEndpoint.initialize(tempDir)
 
 			ClineEndpoint.isSelfHosted().should.be.true()
 		})
 
-		it("should return false when in normal mode (no endpoints.json)", async () => {
-			// No endpoints.json file exists
+		it("should return false when in normal mode (axgate-only endpoints)", async () => {
 			await ClineEndpoint.initialize(tempDir)
 
 			ClineEndpoint.isSelfHosted().should.be.false()
@@ -608,7 +651,7 @@ describe("ClineEndpoint configuration", () => {
 
 			// Set up both configs
 			await fs.writeFile(path.join(bundledDir, "endpoints.json"), JSON.stringify(bundledConfig), "utf8")
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(userConfig), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(userConfig), "utf8")
 
 			await ClineEndpoint.initialize(bundledDir)
 
@@ -627,7 +670,7 @@ describe("ClineEndpoint configuration", () => {
 			}
 
 			// Only create user config, no bundled config
-			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(userConfig), "utf8")
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(userConfig), "utf8")
 
 			await ClineEndpoint.initialize(bundledDir)
 
@@ -700,6 +743,178 @@ describe("ClineEndpoint configuration", () => {
 				error.message.should.containEql("Missing required field")
 				error.message.should.containEql(path.join(bundledDir, "endpoints.json"))
 			}
+		})
+
+		it("should merge user axgate fields when bundled endpoints omit axgateBaseUrl", async () => {
+			const bundledConfig = {
+				authNexusBaseUrl: "https://auth.mtsilicon.com",
+				updateAppId: "app_axline_vsix",
+			}
+			const userConfig = {
+				axgateBaseUrl: "https://auth.mtsilicon.com:6343",
+				authAppId: "app_uu1Sn7yC",
+			}
+
+			await fs.writeFile(path.join(bundledDir, "endpoints.json"), JSON.stringify(bundledConfig), "utf8")
+			await fs.mkdir(path.join(tempDir, ".axline"), { recursive: true })
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(userConfig), "utf8")
+
+			await ClineEndpoint.initialize(bundledDir)
+
+			const extension = ClineEndpoint.getEndpointsExtension()
+			extension?.axgateBaseUrl?.should.equal("https://auth.mtsilicon.com:6343")
+			extension?.authAppId?.should.equal("app_uu1Sn7yC")
+			extension?.authNexusBaseUrl?.should.equal("https://auth.mtsilicon.com")
+			extension?.updateAppId?.should.equal("app_axline_vsix")
+		})
+	})
+
+	describe("Axline endpoints extension fields", () => {
+		it("should parse axgate and private-update fields from bundled endpoints.json", async () => {
+			const extensionConfig = {
+				axgateBaseUrl: "https://auth.mtsilicon.com:6343",
+				authAppId: "app_uu1Sn7yC",
+				authNexusBaseUrl: "https://auth.mtsilicon.com",
+				updateAppId: "app_axline_vsix",
+				updateEnrollmentCode: "perm-enroll-code",
+			}
+
+			await fs.writeFile(path.join(tempDir, "endpoints.json"), JSON.stringify(extensionConfig), "utf8")
+			await ClineEndpoint.initialize(tempDir)
+
+			const extension = ClineEndpoint.getEndpointsExtension()
+			extension?.axgateBaseUrl?.should.equal("https://auth.mtsilicon.com:6343")
+			extension?.authAppId?.should.equal("app_uu1Sn7yC")
+			extension?.authNexusBaseUrl?.should.equal("https://auth.mtsilicon.com")
+			extension?.updateAppId?.should.equal("app_axline_vsix")
+			extension?.updateEnrollmentCode?.should.equal("perm-enroll-code")
+			ClineEndpoint.isBundledConfig().should.be.true()
+		})
+
+		it("should reject invalid authNexusBaseUrl", async () => {
+			await fs.writeFile(
+				path.join(tempDir, "endpoints.json"),
+				JSON.stringify({ axgateBaseUrl: "https://axgate.example:6100", authNexusBaseUrl: "not-a-url" }),
+				"utf8",
+			)
+
+			try {
+				await ClineEndpoint.initialize(tempDir)
+				throw new Error("Should have thrown")
+			} catch (error: unknown) {
+				;(error as ClineConfigurationError).should.be.instanceof(ClineConfigurationError)
+				;(error as Error).message.should.containEql("authNexusBaseUrl")
+			}
+		})
+
+		it("should reject remote plain HTTP axgateBaseUrl", async () => {
+			await fs.writeFile(
+				path.join(tempDir, "endpoints.json"),
+				JSON.stringify({ axgateBaseUrl: "http://axgate.example:6100" }),
+				"utf8",
+			)
+
+			try {
+				await ClineEndpoint.initialize(tempDir)
+				throw new Error("Should have thrown")
+			} catch (error: unknown) {
+				;(error as ClineConfigurationError).should.be.instanceof(ClineConfigurationError)
+				;(error as Error).message.should.containEql("HTTPS")
+			}
+		})
+
+		it("should rewrite retired HTTP AuthNexus / AxGate bases to HTTPS defaults", async () => {
+			await fs.mkdir(path.join(tempDir, ".axline"), { recursive: true })
+			await fs.writeFile(
+				path.join(tempDir, ".axline", "endpoints.json"),
+				JSON.stringify({
+					axgateBaseUrl: "http://auth.mtsilicon.com:6100",
+					authNexusBaseUrl: "http://auth.mtsilicon.com:3000",
+				}),
+				"utf8",
+			)
+
+			await ClineEndpoint.initialize(tempDir)
+
+			const extension = ClineEndpoint.getEndpointsExtension()
+			extension?.axgateBaseUrl?.should.equal("https://auth.mtsilicon.com:6343")
+			extension?.authNexusBaseUrl?.should.equal("https://auth.mtsilicon.com")
+			const onDisk = JSON.parse(await fs.readFile(path.join(tempDir, ".axline", "endpoints.json"), "utf8"))
+			onDisk.axgateBaseUrl.should.equal("https://auth.mtsilicon.com:6343")
+			onDisk.authNexusBaseUrl.should.equal("https://auth.mtsilicon.com")
+		})
+
+		it("should rewrite retired AuthNexus :3443 to standard HTTPS :443", async () => {
+			await fs.mkdir(path.join(tempDir, ".axline"), { recursive: true })
+			await fs.writeFile(
+				path.join(tempDir, ".axline", "endpoints.json"),
+				JSON.stringify({
+					authNexusBaseUrl: "https://auth.mtsilicon.com:3443",
+				}),
+				"utf8",
+			)
+
+			await ClineEndpoint.initialize(tempDir)
+
+			const extension = ClineEndpoint.getEndpointsExtension()
+			extension?.authNexusBaseUrl?.should.equal("https://auth.mtsilicon.com")
+			const onDisk = JSON.parse(await fs.readFile(path.join(tempDir, ".axline", "endpoints.json"), "utf8"))
+			onDisk.authNexusBaseUrl.should.equal("https://auth.mtsilicon.com")
+		})
+	})
+
+	describe("Axline user config paths", () => {
+		it("should prefer ~/.axline/endpoints.json over legacy ~/.cline", async () => {
+			const axlineConfig = {
+				axgateBaseUrl: "https://axline.example:6100",
+			}
+			const legacyConfig = {
+				axgateBaseUrl: "https://legacy.example:6100",
+			}
+
+			await fs.mkdir(path.join(tempDir, ".cline"), { recursive: true })
+			await fs.writeFile(path.join(tempDir, ".axline", "endpoints.json"), JSON.stringify(axlineConfig), "utf8")
+			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(legacyConfig), "utf8")
+
+			await ClineEndpoint.initialize(tempDir)
+
+			const extension = ClineEndpoint.getEndpointsExtension()
+			extension?.axgateBaseUrl?.should.equal("https://axline.example:6100")
+		})
+
+		it("should fall back to legacy ~/.cline/endpoints.json when ~/.axline is missing", async () => {
+			const legacyConfig = {
+				axgateBaseUrl: "https://legacy.example:6100",
+			}
+
+			await fs.mkdir(path.join(tempDir, ".cline"), { recursive: true })
+			await fs.writeFile(path.join(tempDir, ".cline", "endpoints.json"), JSON.stringify(legacyConfig), "utf8")
+
+			await ClineEndpoint.initialize(tempDir)
+
+			const extension = ClineEndpoint.getEndpointsExtension()
+			extension?.axgateBaseUrl?.should.equal("https://legacy.example:6100")
+		})
+
+		it("should load update enrollment code from ~/.axline/secrets.json", async () => {
+			await fs.writeFile(
+				path.join(tempDir, ".axline", "endpoints.json"),
+				JSON.stringify({
+					authNexusBaseUrl: "https://auth.example:3000",
+					updateAppId: "app_axline",
+				}),
+				"utf8",
+			)
+			await fs.writeFile(
+				path.join(tempDir, ".axline", "secrets.json"),
+				JSON.stringify({ updateEnrollmentCode: "secret-from-file" }),
+				"utf8",
+			)
+
+			await ClineEndpoint.initialize(tempDir)
+
+			ClineEndpoint.getUserSecrets()?.updateEnrollmentCode?.should.equal("secret-from-file")
+			getUpdateConfig()?.updateEnrollmentCode?.should.equal("secret-from-file")
 		})
 	})
 })

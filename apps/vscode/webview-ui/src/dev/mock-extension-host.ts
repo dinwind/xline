@@ -26,15 +26,17 @@ const MOCK_USER = {
 const MOCK_AXGATE_SUMMARY = {
 	subject: "dev-user@example.com",
 	roles: ["developer", "axgate-user"],
-	providers: [
-		{ name: "openai", model: "gpt-4o", enabled: true },
-		{ name: "anthropic", model: "claude-sonnet-4", enabled: true },
-		{ name: "legacy-provider", model: "deprecated-model", enabled: false },
-	],
-	models: ["gpt-4o", "claude-sonnet-4", "deepseek-chat"],
+	providers: [{ name: "aliyun", model: "qwen3.7-plus", enabled: true }],
+	models: ["ax_auto", "ax_aliyun_deepseek-v4-flash", "ax_aliyun_glm-5.2", "ax_aliyun_kimi-k2.7-code"],
 	quotaLimit: 100_000,
 	quotaUsageJson: JSON.stringify({ "ide-dev-user@example.com": 42_500 }),
 	healthStatus: "ok",
+	installationId: "550e8400-e29b-41d4-a716-446655440000",
+	clientVersion: "0.2.0",
+	deviceStatus: "pending",
+	minimumVersion: "0.2.0",
+	deviceEnforcement: "observe",
+	versionEnforcement: "observe",
 }
 
 function devParams() {
@@ -150,6 +152,20 @@ function handleUnaryRequest(request: GrpcRequestPayload) {
 			break
 		case "cline.AccountService.getAxgateAccountSummary":
 			dispatchGrpcResponse(request.request_id, MOCK_AXGATE_SUMMARY, false)
+			break
+		case "cline.AccountService.refreshAxgateDeviceStatus":
+			dispatchGrpcResponse(
+				request.request_id,
+				{
+					installationId: MOCK_AXGATE_SUMMARY.installationId,
+					clientVersion: MOCK_AXGATE_SUMMARY.clientVersion,
+					deviceStatus: MOCK_AXGATE_SUMMARY.deviceStatus,
+					minimumVersion: MOCK_AXGATE_SUMMARY.minimumVersion,
+					deviceEnforcement: MOCK_AXGATE_SUMMARY.deviceEnforcement,
+					versionEnforcement: MOCK_AXGATE_SUMMARY.versionEnforcement,
+				},
+				false,
+			)
 			break
 		case "cline.AccountService.accountLoginWithCredentials":
 			dispatchGrpcResponse(request.request_id, { value: "Signed in (dev mock)." }, false)

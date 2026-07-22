@@ -537,7 +537,7 @@ class DebugHarness {
 				if (frame.isDetached()) continue
 				try {
 					const title = await frame.title()
-					if (title.startsWith("Cline")) {
+					if (title.startsWith("Axline") || title.startsWith("Cline")) {
 						this.sidebarFrame = frame
 						return frame
 					}
@@ -881,12 +881,15 @@ class DebugHarness {
 	async uiOpenSidebar(): Promise<any> {
 		if (!this.page) throw new Error("VSCode not running")
 		try {
-			await this.page.getByRole("tab", { name: /Cline/ }).locator("a").click()
+			await this.page
+				.getByRole("tab", { name: /Axline|Cline/ })
+				.locator("a")
+				.click()
 		} catch {
 			// Activity bar might need a different approach
 			await this.page.keyboard.press("Meta+Shift+p")
 			await sleep(300)
-			await this.page.keyboard.type("Cline: Focus on Cline View")
+			await this.page.keyboard.type("Axline: Focus on Axline View")
 			await sleep(200)
 			await this.page.keyboard.press("Enter")
 		}

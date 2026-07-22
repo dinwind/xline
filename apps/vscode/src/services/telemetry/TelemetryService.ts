@@ -423,13 +423,13 @@ export class TelemetryService {
 		// We only enable telemetry if global host telemetry is enabled
 		const hostSetting = await HostProvider.env.getTelemetrySettings({})
 		if (hostSetting.isEnabled === Setting.DISABLED) {
-			// Only show warning if user has opted in to Cline telemetry but host telemetry is disabled
+			// Only show warning if user has opted in to Axline telemetry but host telemetry is disabled
 			if (didUserOptIn) {
 				void HostProvider.window
 					.showMessage({
 						type: ShowMessageType.WARNING,
 						message:
-							"Anonymous Cline error and usage reporting is enabled, but IDE telemetry is disabled. To enable error and usage reporting for this extension, enable telemetry in IDE settings.",
+							"Anonymous Axline error and usage reporting is enabled, but IDE telemetry is disabled. To enable error and usage reporting for this extension, enable telemetry in IDE settings.",
 						options: {
 							items: ["Open Settings"],
 						},

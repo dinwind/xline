@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	AGENT_CONFIG_DIRECTORY_NAME,
+	AXLINE_MCP_SETTINGS_FILE_NAME,
 	CLINE_CONNECTOR_SETTINGS_FILE_NAME,
 	CLINE_MCP_SETTINGS_FILE_NAME,
 	HOOKS_CONFIG_DIRECTORY_NAME,
@@ -154,13 +155,14 @@ describe("storage path resolution", () => {
 		);
 	});
 
-	it("falls back to CLINE_DATA_DIR/settings/cline_mcp_settings.json for MCP settings", () => {
+	it("falls back to CLINE_DATA_DIR/settings/axline_mcp_settings.json for MCP settings", () => {
 		snapshot = captureEnv();
+		delete process.env.AXLINE_MCP_SETTINGS_PATH;
 		delete process.env.CLINE_MCP_SETTINGS_PATH;
 		process.env.CLINE_DATA_DIR = "/tmp/cline-data";
 
 		expect(resolveMcpSettingsPath()).toBe(
-			join("/tmp/cline-data", "settings", CLINE_MCP_SETTINGS_FILE_NAME),
+			join("/tmp/cline-data", "settings", AXLINE_MCP_SETTINGS_FILE_NAME),
 		);
 	});
 
@@ -232,7 +234,7 @@ describe("storage path resolution", () => {
 
 		expect(paths).toEqual([
 			join(workspacePath, ".clinerules", "workflows"),
-			expect.stringContaining(join("Documents", "Cline", "Workflows")),
+			expect.stringContaining(join("Documents", "Axline", "Workflows")),
 			join("/tmp/home", ".cline", "workflows"),
 			join(workspacePath, ".cline", "workflows"),
 		]);

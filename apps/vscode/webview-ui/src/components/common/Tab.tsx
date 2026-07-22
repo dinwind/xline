@@ -3,7 +3,8 @@ import React, { forwardRef, HTMLAttributes, useCallback } from "react"
 type TabProps = HTMLAttributes<HTMLDivElement>
 
 export const Tab = ({ className, children, ...props }: TabProps) => (
-	<div className={`fixed inset-0 flex flex-col ${className}`} {...props}>
+	// absolute: fill the App content region below the shared Navbar (not the whole webview).
+	<div className={`absolute inset-0 flex flex-col bg-background ${className}`} {...props}>
 		{children}
 	</div>
 )

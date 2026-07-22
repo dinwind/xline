@@ -1,5 +1,6 @@
 import type { ClineMessage } from "@shared/ExtensionMessage"
 import { memo } from "react"
+import { AxgateDeviceAccessError } from "@/components/account/AxgateDeviceAccessError"
 import CreditLimitError from "@/components/chat/CreditLimitError"
 import EntitlementError from "@/components/chat/EntitlementError"
 import OrgClinePassRestrictionError from "@/components/chat/OrgClinePassRestrictionError"
@@ -30,7 +31,7 @@ const ErrorRow = memo(({ message, errorType, apiRequestFailedMessage, apiReqStre
 			case "mistake_limit_reached":
 				// Handle API request errors with special error parsing
 				if (rawApiError) {
-					// FIXME: ClineError parsing should not be applied to non-Cline providers, but it seems we're using clineErrorMessage below in the default error display
+					// FIXME: ClineError parsing should not be applied to non-Axline providers, but it seems we're using clineErrorMessage below in the default error display
 					const clineError = ClineError.parse(rawApiError)
 					const errorMessage = clineError?._error?.message || clineError?.message || rawApiError
 					const requestId = clineError?._error?.request_id
@@ -88,6 +89,21 @@ const ErrorRow = memo(({ message, errorType, apiRequestFailedMessage, apiReqStre
 					if (clineError?.isErrorType(ClineErrorType.QuotaExceeded)) {
 						const detailMessage = clineError?._error?.details?.message || errorMessage
 						return <p className="m-0 whitespace-pre-wrap text-error wrap-anywhere">{detailMessage}</p>
+					}
+
+					if (
+						usesGatewayAuth &&
+						(clineError?.isErrorType(ClineErrorType.DeviceAccess) ||
+							clineError?.isErrorType(ClineErrorType.VersionUnsupported))
+					) {
+						const details = clineError._error?.details as { minimumVersion?: string } | undefined
+						return (
+							<AxgateDeviceAccessError
+								errorCode={errorCode}
+								message={errorMessage}
+								minimumVersion={details?.minimumVersion}
+							/>
+						)
 					}
 
 					if (clineError?.isErrorType(ClineErrorType.Auth) && usesGatewayAuth) {
@@ -153,7 +169,7 @@ const ErrorRow = memo(({ message, errorType, apiRequestFailedMessage, apiReqStre
 				return (
 					<div className="flex flex-col p-2 rounded text-xs opacity-80 bg-quote text-foreground">
 						<div>
-							Cline tried to access <code>{message.text}</code> which is blocked by the <code>.clineignore</code>
+							Axline tried to access <code>{message.text}</code> which is blocked by the <code>.clineignore</code>
 							file.
 						</div>
 					</div>

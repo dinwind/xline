@@ -42,11 +42,12 @@ import { ShowMessageType } from "@/shared/proto/host/window"
 import { Logger } from "@/shared/services/Logger"
 import { expandEnvironmentVariables } from "@/utils/envExpansion"
 import type { TelemetryService } from "../telemetry/TelemetryService"
+import { applyMcpToolAutoApproveToggle, isMcpToolNameAutoApproved } from "./auto-approve"
 import { DEFAULT_REQUEST_TIMEOUT_MS } from "./constants"
 import { McpOAuthManager } from "./McpOAuthManager"
-import { updateMcpSettingsFile } from "./settingsLock"
 import { StreamableHttpReconnectHandler } from "./StreamableHttpReconnectHandler"
 import { BaseConfigSchema, McpSettingsSchema, ServerConfigSchema } from "./schemas"
+import { updateMcpSettingsFile } from "./settingsLock"
 import type { McpConnection, McpServerConfig, Transport } from "./types"
 export class McpHub {
 	getMcpServersPath: () => Promise<string>
@@ -451,7 +452,7 @@ export class McpHub {
 			// Each MCP server requires its own transport connection and has unique capabilities, configurations, and error handling. Having separate clients also allows proper scoping of resources/tools and independent server management like reconnection.
 			const client = new Client(
 				{
-					name: "Cline",
+					name: "Axline",
 					version: this.clientVersion,
 				},
 				{
@@ -788,7 +789,7 @@ export class McpHub {
 			// Mark tools as always allowed based on settings
 			const tools = (response?.tools || []).map((tool) => ({
 				...tool,
-				autoApprove: autoApproveConfig.includes(tool.name),
+				autoApprove: isMcpToolNameAutoApproved(autoApproveConfig, tool.name),
 			}))
 
 			return tools
@@ -951,7 +952,7 @@ export class McpHub {
 				if (currentConnection.server.tools) {
 					currentConnection.server.tools = currentConnection.server.tools.map((tool) => ({
 						...tool,
-						autoApprove: autoApprove.includes(tool.name),
+						autoApprove: isMcpToolNameAutoApproved(autoApprove, tool.name),
 					}))
 				}
 				// Also update Cline-specific settings in the stored config.
@@ -1032,7 +1033,7 @@ export class McpHub {
 				if (currentConnection.server.tools) {
 					currentConnection.server.tools = currentConnection.server.tools.map((tool) => ({
 						...tool,
-						autoApprove: autoApprove.includes(tool.name),
+						autoApprove: isMcpToolNameAutoApproved(autoApprove, tool.name),
 					}))
 				}
 				// Also update Cline-specific settings in the stored config
@@ -1489,36 +1490,26 @@ export class McpHub {
 	async toggleToolAutoApproveRPC(serverName: string, toolNames: string[], shouldAllow: boolean): Promise<McpServer[]> {
 		try {
 			const settingsPath = await getMcpSettingsFilePathHelper(await this.getSettingsDirectoryPath())
+			const connection = this.connections.find((conn) => conn.server.name === serverName)
+			const knownToolNames = connection?.server.tools?.map((tool) => tool.name) ?? toolNames
 			const { config, autoApprove } = await updateMcpSettingsFile(settingsPath, (parsed) => {
-				// Initialize autoApprove if it doesn't exist
 				const servers = parsed.mcpServers as Record<string, any>
-				if (!servers[serverName].autoApprove) {
-					servers[serverName].autoApprove = []
-				}
-
-				const approve = servers[serverName].autoApprove
-				for (const toolName of toolNames) {
-					const toolIndex = approve.indexOf(toolName)
-
-					if (shouldAllow && toolIndex === -1) {
-						// Add tool to autoApprove list
-						approve.push(toolName)
-					} else if (!shouldAllow && toolIndex !== -1) {
-						// Remove tool from autoApprove list
-						approve.splice(toolIndex, 1)
-					}
-				}
-				return { config: parsed, autoApprove: approve }
+				const nextApprove = applyMcpToolAutoApproveToggle(
+					servers[serverName].autoApprove,
+					toolNames,
+					shouldAllow,
+					knownToolNames,
+				)
+				servers[serverName].autoApprove = nextApprove
+				return { config: parsed, autoApprove: nextApprove }
 			})
 			this.recordSettingsFingerprint(config.mcpServers as Record<string, McpServerConfig>)
 
 			// Update the tools list to reflect the change
-			const connection = this.connections.find((conn) => conn.server.name === serverName)
 			if (connection && connection.server.tools) {
-				// Update the autoApprove property of each tool in the in-memory server object
 				connection.server.tools = connection.server.tools.map((tool) => ({
 					...tool,
-					autoApprove: autoApprove.includes(tool.name),
+					autoApprove: isMcpToolNameAutoApproved(autoApprove, tool.name),
 				}))
 			}
 
@@ -1534,36 +1525,26 @@ export class McpHub {
 	async toggleToolAutoApprove(serverName: string, toolNames: string[], shouldAllow: boolean): Promise<void> {
 		try {
 			const settingsPath = await getMcpSettingsFilePathHelper(await this.getSettingsDirectoryPath())
+			const connection = this.connections.find((conn) => conn.server.name === serverName)
+			const knownToolNames = connection?.server.tools?.map((tool) => tool.name) ?? toolNames
 			const { autoApprove, mcpServers } = await updateMcpSettingsFile(settingsPath, (config) => {
-				// Initialize autoApprove if it doesn't exist
 				const servers = config.mcpServers as Record<string, any>
-				if (!servers[serverName].autoApprove) {
-					servers[serverName].autoApprove = []
-				}
-
-				const approve = servers[serverName].autoApprove
-				for (const toolName of toolNames) {
-					const toolIndex = approve.indexOf(toolName)
-
-					if (shouldAllow && toolIndex === -1) {
-						// Add tool to autoApprove list
-						approve.push(toolName)
-					} else if (!shouldAllow && toolIndex !== -1) {
-						// Remove tool from autoApprove list
-						approve.splice(toolIndex, 1)
-					}
-				}
-				return { autoApprove: approve as string[], mcpServers: servers as Record<string, McpServerConfig> }
+				const nextApprove = applyMcpToolAutoApproveToggle(
+					servers[serverName].autoApprove,
+					toolNames,
+					shouldAllow,
+					knownToolNames,
+				)
+				servers[serverName].autoApprove = nextApprove
+				return { autoApprove: nextApprove, mcpServers: servers as Record<string, McpServerConfig> }
 			})
 			this.recordSettingsFingerprint(mcpServers)
 
 			// Update the tools list to reflect the change
-			const connection = this.connections.find((conn) => conn.server.name === serverName)
 			if (connection && connection.server.tools) {
-				// Update the autoApprove property of each tool in the in-memory server object
 				connection.server.tools = connection.server.tools.map((tool) => ({
 					...tool,
-					autoApprove: autoApprove.includes(tool.name),
+					autoApprove: isMcpToolNameAutoApproved(autoApprove, tool.name),
 				}))
 				await this.notifyWebviewOfServerChanges()
 			}

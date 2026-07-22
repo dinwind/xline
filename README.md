@@ -20,7 +20,12 @@ Axline 是 [Cline](https://github.com/cline/cline) 的 fork，当前通过本地
 **命令行安装：**
 
 ```powershell
-code --install-extension path\to\axline.vsix
+# 推荐：从仓库一键构建并安装（会抑制 VS Code CLI 的 DEP0169 弃用警告）
+bun run install:vscode
+
+# 或手动安装已有 VSIX（VS Code 1.9x 可能打印无害的 url.parse 弃用警告，可忽略或抑制）
+$env:NODE_OPTIONS="--disable-warning=DEP0169"
+code --install-extension path\to\axline.vsix --force
 ```
 
 **从源码打包：**

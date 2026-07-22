@@ -25,6 +25,7 @@ type AccountViewProps = {
 	organizations: UserOrganization[] | null
 	activeOrganization: UserOrganization | null
 	onDone: () => void
+	isWelcomeFlow?: boolean
 }
 
 type ClineAccountViewProps = {
@@ -43,12 +44,15 @@ type CachedData = {
 
 const ClineEnvOptions = ["Production", "Staging", "Local"] as const
 
-const AccountView = ({ onDone, clineUser, organizations, activeOrganization }: AccountViewProps) => {
+const AccountView = ({ onDone, clineUser, organizations, activeOrganization, isWelcomeFlow = false }: AccountViewProps) => {
 	const { environment, axgateAuthEnabled } = useExtensionState()
+	const showWelcomeHeader = !isWelcomeFlow || Boolean(clineUser?.uid)
 
 	return (
-		<div className="fixed inset-0 flex flex-col overflow-hidden">
-			<ViewHeader environment={environment} onDone={onDone} showEnvironmentSuffix title="Account" />
+		<div className="absolute inset-0 flex flex-col overflow-hidden bg-background">
+			{showWelcomeHeader ? (
+				<ViewHeader environment={environment} onDone={onDone} showEnvironmentSuffix title="Account" />
+			) : null}
 			<div className="grow flex flex-col px-5 overflow-y-auto">
 				{clineUser?.uid ? (
 					axgateAuthEnabled ? (
@@ -395,7 +399,7 @@ const ClineAccountView = ({ clineUser, userOrganizations, activeOrganization, cl
 				{isClineTester && environment !== "selfHosted" && (
 					<div className="w-full gap-1 items-end">
 						<VSCodeDivider className="w-full my-3" />
-						<div className="text-sm font-semibold">Cline Environment</div>
+						<div className="text-sm font-semibold">Axline Environment</div>
 						<VSCodeDropdown
 							className="w-full mt-1"
 							currentValue={clineEnv}

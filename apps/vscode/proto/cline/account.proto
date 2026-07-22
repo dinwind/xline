@@ -63,6 +63,7 @@ service AccountService {
 
   // Axline: fetch AxGate session, providers, and quota snapshot for Account page.
   rpc getAxgateAccountSummary(EmptyRequest) returns (AxgateAccountSummary);
+  rpc refreshAxgateDeviceStatus(EmptyRequest) returns (AxgateDeviceStatusSummary);
 }
 
 message AuthStateChangedRequest {
@@ -183,4 +184,21 @@ message AxgateAccountSummary {
   optional double quota_limit = 5;
   optional string quota_usage_json = 6;
   optional string health_status = 7;
+  optional string installation_id = 8;
+  optional string client_version = 9;
+  optional string device_status = 10;
+  optional string minimum_version = 11;
+  optional string device_enforcement = 12;
+  optional string version_enforcement = 13;
+  optional string device_message = 14;
+}
+
+message AxgateDeviceStatusSummary {
+  string installation_id = 1;
+  string client_version = 2;
+  string device_status = 3;
+  optional string minimum_version = 4;
+  optional string device_enforcement = 5;
+  optional string version_enforcement = 6;
+  optional string message = 7;
 }

@@ -29,9 +29,9 @@ describe("Shell Path Escaping", () => {
 		})
 
 		it("should handle paths without special characters", () => {
-			const path = "/Users/user/Documents/Cline/Hooks/PreToolUse"
+			const path = "/Users/user/Documents/Axline/Hooks/PreToolUse"
 			const escaped = escapeShellPath(path)
-			escaped.should.equal("'/Users/user/Documents/Cline/Hooks/PreToolUse'")
+			escaped.should.equal("'/Users/user/Documents/Axline/Hooks/PreToolUse'")
 		})
 
 		it("should handle paths with spaces", () => {
@@ -105,9 +105,9 @@ describe("Shell Path Escaping", () => {
 		})
 
 		it("should handle global hooks directory with spaces", () => {
-			const path = "/Users/user name/Documents/Cline/Hooks/PreToolUse"
+			const path = "/Users/user name/Documents/Axline/Hooks/PreToolUse"
 			const escaped = escapeShellPath(path)
-			escaped.should.equal("'/Users/user name/Documents/Cline/Hooks/PreToolUse'")
+			escaped.should.equal("'/Users/user name/Documents/Axline/Hooks/PreToolUse'")
 		})
 
 		it("should handle workspace hooks with spaces in root", () => {
@@ -136,9 +136,9 @@ describe("Shell Path Escaping", () => {
 		})
 
 		it("should handle paths without special characters", () => {
-			const path = "C:\\Users\\user\\Documents\\Cline\\Hooks\\PreToolUse"
+			const path = "C:\\Users\\user\\Documents\\Axline\\Hooks\\PreToolUse"
 			const escaped = escapeShellPath(path)
-			escaped.should.equal('"C:\\Users\\user\\Documents\\Cline\\Hooks\\PreToolUse"')
+			escaped.should.equal('"C:\\Users\\user\\Documents\\Axline\\Hooks\\PreToolUse"')
 		})
 
 		it("should handle paths with spaces", () => {
@@ -194,9 +194,9 @@ describe("Shell Path Escaping", () => {
 		})
 
 		it("should handle global hooks directory with spaces", () => {
-			const path = "C:\\Users\\user name\\Documents\\Cline\\Hooks\\PreToolUse"
+			const path = "C:\\Users\\user name\\Documents\\Axline\\Hooks\\PreToolUse"
 			const escaped = escapeShellPath(path)
-			escaped.should.equal('"C:\\Users\\user name\\Documents\\Cline\\Hooks\\PreToolUse"')
+			escaped.should.equal('"C:\\Users\\user name\\Documents\\Axline\\Hooks\\PreToolUse"')
 		})
 
 		it("should handle workspace hooks with spaces in root", () => {
@@ -215,16 +215,16 @@ describe("Shell Path Escaping", () => {
 	describe("Real-world scenarios", () => {
 		it("should handle typical macOS global hooks path with space in username", () => {
 			setPlatform("darwin")
-			const path = "/Users/John Doe/Documents/Cline/Hooks/PreToolUse"
+			const path = "/Users/John Doe/Documents/Axline/Hooks/PreToolUse"
 			const escaped = escapeShellPath(path)
-			escaped.should.equal("'/Users/John Doe/Documents/Cline/Hooks/PreToolUse'")
+			escaped.should.equal("'/Users/John Doe/Documents/Axline/Hooks/PreToolUse'")
 		})
 
 		it("should handle typical Windows global hooks path with space in username", () => {
 			setPlatform("win32")
-			const path = "C:\\Users\\John Doe\\Documents\\Cline\\Hooks\\PreToolUse"
+			const path = "C:\\Users\\John Doe\\Documents\\Axline\\Hooks\\PreToolUse"
 			const escaped = escapeShellPath(path)
-			escaped.should.equal('"C:\\Users\\John Doe\\Documents\\Cline\\Hooks\\PreToolUse"')
+			escaped.should.equal('"C:\\Users\\John Doe\\Documents\\Axline\\Hooks\\PreToolUse"')
 		})
 
 		it("should handle workspace with company name and spaces", () => {

@@ -2,7 +2,7 @@
  * Instruction system selection for Axline.
  *
  * - `cokodo`: load rules/workflows/skills from `.agent/` (Cokodo agent protocol)
- * - `cline`: load from legacy Cline paths (`.clinerules`, `.cline`, `~/Documents/Cline`, etc.)
+ * - `cline`: load from legacy Cline paths (`.clinerules`, `.cline`, `~/Documents/Axline`, etc.)
  * - `both`: Cokodo paths first, then Cline paths as fallback
  */
 export type InstructionSystem = "cokodo" | "cline" | "both";

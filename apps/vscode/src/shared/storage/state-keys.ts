@@ -67,6 +67,7 @@ const REMOTE_CONFIG_EXTRA_FIELDS = {
 const GLOBAL_STATE_FIELDS = {
 	clineVersion: { default: undefined as string | undefined },
 	"cline.generatedMachineId": { default: undefined as string | undefined }, // Note, distinctId reads/writes this directly from/to StorageContext before StateManager is initialized.
+	"axline.installationId": { default: undefined as string | undefined },
 	lastShownAnnouncementId: { default: undefined as string | undefined },
 	taskHistory: { default: [] as HistoryItem[], isAsync: true },
 	userInfo: { default: undefined as UserInfo | undefined },
@@ -348,7 +349,10 @@ const SECRETS_KEYS = [
 	"mcpOAuthSecrets",
 	"openai-codex-oauth-credentials", // JSON blob containing OAuth tokens for OpenAI Codex (ChatGPT subscription)
 	"wandbApiKey",
+	"axline.axgateDeviceToken",
 ] as const
+
+export const AXLINE_AXGATE_DEVICE_TOKEN_SECRET_KEY = "axline.axgateDeviceToken" as const
 
 // WARNING, these are not ALL of the local state keys in practice. For example, FileContextTracker
 // uses dynamic keys like pendingFileContextWarning_${taskId}.
