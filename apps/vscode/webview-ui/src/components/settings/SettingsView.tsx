@@ -2,16 +2,7 @@ import type { ExtensionMessage } from "@shared/ExtensionMessage"
 import { isClineInternalTester } from "@shared/internal/account"
 import { ResetStateRequest } from "@shared/proto/cline/state"
 import type { UserOrganization } from "@shared/proto/index.cline"
-import {
-	CheckCheck,
-	FlaskConical,
-	HardDriveDownload,
-	Info,
-	type LucideIcon,
-	SlidersHorizontal,
-	SquareTerminal,
-	Wrench,
-} from "lucide-react"
+import { CheckCheck, FlaskConical, HardDriveDownload, Info, type LucideIcon, SquareTerminal, Wrench } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useEvent } from "react-use"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -24,7 +15,6 @@ import { Tab, TabContent, TabList, TabTrigger } from "../common/Tab"
 import ViewHeader from "../common/ViewHeader"
 import SectionHeader from "./SectionHeader"
 import AboutSection from "./sections/AboutSection"
-import ApiConfigurationSection from "./sections/ApiConfigurationSection"
 import DebugSection from "./sections/DebugSection"
 import FeatureSettingsSection from "./sections/FeatureSettingsSection"
 import GeneralSettingsSection from "./sections/GeneralSettingsSection"
@@ -34,24 +24,19 @@ import TerminalSettingsSection from "./sections/TerminalSettingsSection"
 const IS_DEV = process.env.IS_DEV
 
 // Tab definitions
-type SettingsTabID = "api-config" | "features" | "terminal" | "general" | "about" | "debug" | "remote-config"
+type SettingsTabID = "features" | "terminal" | "general" | "about" | "debug" | "remote-config"
 interface SettingsTab {
 	id: SettingsTabID
 	name: string
 	tooltipText: string
 	headerText: string
 	icon: LucideIcon
-	hidden?: (params?: {
-		user: ClineUser | null
-		activeOrganization: UserOrganization | null
-		axgateAuthEnabled: boolean
-	}) => boolean
+	hidden?: (params?: { user: ClineUser | null; activeOrganization: UserOrganization | null }) => boolean
 }
 
 type SettingsTabContext = {
 	user: ClineUser | null
 	activeOrganization: UserOrganization | null
-	axgateAuthEnabled: boolean
 }
 
 function getVisibleSettingsTabs(context: SettingsTabContext) {
@@ -67,14 +52,6 @@ function resolveSettingsTab(targetSection: string | undefined, context: Settings
 }
 
 const SETTINGS_TABS: SettingsTab[] = [
-	{
-		id: "api-config",
-		name: "API Configuration",
-		tooltipText: "API Configuration",
-		headerText: "API Configuration",
-		icon: SlidersHorizontal,
-		hidden: ({ axgateAuthEnabled } = { user: null, activeOrganization: null, axgateAuthEnabled: false }) => axgateAuthEnabled,
-	},
 	{
 		id: "features",
 		name: "Features",
@@ -102,13 +79,13 @@ const SETTINGS_TABS: SettingsTab[] = [
 		tooltipText: "Remotely configured fields",
 		headerText: "Remote Config",
 		icon: HardDriveDownload,
-		hidden: ({ activeOrganization } = { user: null, activeOrganization: null, axgateAuthEnabled: false }) =>
+		hidden: ({ activeOrganization } = { user: null, activeOrganization: null }) =>
 			!activeOrganization || !isAdminOrOwner(activeOrganization),
 	},
 	{
 		id: "about",
 		name: "About",
-		tooltipText: "About Cline",
+		tooltipText: "About",
 		headerText: "About",
 		icon: Info,
 	},
@@ -119,8 +96,7 @@ const SETTINGS_TABS: SettingsTab[] = [
 		tooltipText: "Debug Tools",
 		headerText: "Debug",
 		icon: FlaskConical,
-		hidden: ({ user } = { user: null, activeOrganization: null, axgateAuthEnabled: false }) =>
-			!IS_DEV && !isClineInternalTester(user?.email || ""),
+		hidden: ({ user } = { user: null, activeOrganization: null }) => !IS_DEV && !isClineInternalTester(user?.email || ""),
 	},
 ]
 
@@ -150,7 +126,6 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 	// Memoize to avoid recreation
 	const TAB_CONTENT_MAP: Record<SettingsTabID, React.FC<any>> = useMemo(
 		() => ({
-			"api-config": ApiConfigurationSection,
 			general: GeneralSettingsSection,
 			features: FeatureSettingsSection,
 			terminal: TerminalSettingsSection,
@@ -161,16 +136,15 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 		[],
 	) // Empty deps - these imports never change
 
-	const { version, environment, settingsInitialModelTab, axgateAuthEnabled } = useExtensionState()
+	const { version, environment } = useExtensionState()
 	const { activeOrganization, clineUser } = useClineAuth()
 
 	const tabContext = useMemo<SettingsTabContext>(
 		() => ({
 			user: clineUser,
 			activeOrganization,
-			axgateAuthEnabled: axgateAuthEnabled ?? false,
 		}),
-		[activeOrganization, axgateAuthEnabled, clineUser],
+		[activeOrganization, clineUser],
 	)
 
 	const [activeTab, setActiveTab] = useState<string>(() => resolveSettingsTab(targetSection, tabContext))
@@ -275,12 +249,10 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 			props.onResetState = handleResetState
 		} else if (activeTab === "about") {
 			props.version = version
-		} else if (activeTab === "api-config") {
-			props.initialModelTab = settingsInitialModelTab
 		}
 
 		return <Component {...props} />
-	}, [activeTab, handleResetState, settingsInitialModelTab, version, TAB_CONTENT_MAP])
+	}, [activeTab, handleResetState, version, TAB_CONTENT_MAP])
 
 	return (
 		<Tab>

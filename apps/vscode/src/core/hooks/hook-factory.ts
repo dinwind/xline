@@ -633,7 +633,7 @@ class StdioHookRunner<Name extends HookName> extends HookRunner<Name> {
 /**
  * Combines multiple hook runners and executes them in parallel.
  *
- * Used in multi-root workspaces where both global hooks (from ~/Documents/Cline/Hooks/)
+ * Used in multi-root workspaces where both global hooks (from ~/Documents/Axline/Hooks/)
  * and workspace-specific hooks (from each workspace's .clinerules/hooks/) exist for the
  * same hook type.
  *
@@ -816,10 +816,10 @@ export class HookFactory {
 
 	/**
 	 * Checks if a hooks directory is a global hooks directory.
-	 * Global hooks are located in paths containing "Cline/Hooks" or "cline/hooks".
+	 * Global hooks are located in paths containing "Axline/Hooks" (or legacy "Cline/Hooks").
 	 */
 	private static isGlobalHooksDir(dir: string): boolean {
-		return /[/\\][Cc]line[/\\][Hh]ooks/i.test(dir)
+		return /[/\\](?:Axline|[Cc]line)[/\\][Hh]ooks/i.test(dir)
 	}
 
 	/**
@@ -836,7 +836,7 @@ export class HookFactory {
 	/**
 	 * Determines the working directory for a hook script based on its location.
 	 *
-	 * - Global hooks (from ~/Documents/Cline/Hooks/): run from the primary workspace root
+	 * - Global hooks (from ~/Documents/Axline/Hooks/): run from the primary workspace root
 	 * - Workspace hooks (from workspaceRoot/.clinerules/hooks/): run from that specific workspace root
 	 *
 	 * This ensures workspace-specific hooks can use relative paths that are meaningful
@@ -877,7 +877,7 @@ export class HookFactory {
 
 	/**
 	 * Categorizes hook scripts by their location (global vs workspace).
-	 * Global hooks are located in ~/Documents/Cline/Hooks/
+	 * Global hooks are located in ~/Documents/Axline/Hooks/
 	 * Workspace hooks are located in workspace .clinerules/hooks/ directories
 	 *
 	 * @param scripts Array of hook script paths
@@ -906,7 +906,7 @@ export class HookFactory {
 
 	/**
 	 * @returns A list of paths to scripts for the given hook name.
-	 * Includes both global hooks (from ~/Documents/Cline/Hooks/) and workspace hooks
+	 * Includes both global hooks (from ~/Documents/Axline/Hooks/) and workspace hooks
 	 * (from .clinerules/hooks/ in each workspace root).
 	 */
 	private static async findHookScripts(hookName: HookName): Promise<string[]> {

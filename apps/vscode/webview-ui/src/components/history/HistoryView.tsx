@@ -371,7 +371,7 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 	)
 
 	return (
-		<div className="fixed overflow-hidden inset-0 flex flex-col w-full">
+		<div className="absolute overflow-hidden inset-0 flex flex-col w-full bg-background">
 			{/* HEADER */}
 			<ViewHeader environment={environment} onDone={onDone} title="History" />
 

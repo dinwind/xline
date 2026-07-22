@@ -598,8 +598,8 @@ const ClineModelPicker: React.FC<ClineModelPickerProps> = ({ isPopup, currentMod
 						marginTop: 0,
 						color: "var(--vscode-descriptionForeground)",
 					}}>
-					The extension automatically fetches the latest Cline model list. If you're unsure which model to choose,
-					compare available models by context window, pricing, and capabilities.
+					The extension automatically fetches the latest model list. If you're unsure which model to choose, compare
+					available models by context window, pricing, and capabilities.
 				</p>
 			)}
 		</div>

@@ -1,15 +1,15 @@
 import { existsSync, readFileSync } from "node:fs"
-import os from "node:os"
 import path from "node:path"
-import { getDocumentsPath } from "@/core/storage/documents-path"
 import type * as vscode from "vscode"
+import { getDocumentsPath } from "@/core/storage/documents-path"
 import { updateMcpSettingsFile } from "@/services/mcp/settingsLock"
-import type { StorageContext } from "@/shared/storage/storage-context"
+import { AXLINE_MCP_SETTINGS_FILE_NAME, LEGACY_CLINE_MCP_SETTINGS_FILE_NAME, resolveStorageHomeDir } from "@/shared/axline-dir"
 import { Logger } from "@/shared/services/Logger"
+import type { StorageContext } from "@/shared/storage/storage-context"
 import { getServerAuthHash } from "@/utils/mcpAuth"
 import { arePathsEqual } from "@/utils/path"
 
-const MCP_SETTINGS_FILE_NAME = "cline_mcp_settings.json"
+const LEGACY_MCP_SETTINGS_FILE_NAME = LEGACY_CLINE_MCP_SETTINGS_FILE_NAME
 const MCP_SETTINGS_MIGRATION_KEY = "__vscodeLegacyMcpSettingsMigration"
 
 type JsonRecord = Record<string, unknown>
@@ -240,28 +240,28 @@ export async function getLegacyMcpSettingsSources(vscodeContext: vscode.Extensio
 	if (extensionStorageDir) {
 		sources.push({
 			id: "vscodeGlobalStorage",
-			path: path.join(extensionStorageDir, "settings", MCP_SETTINGS_FILE_NAME),
+			path: path.join(extensionStorageDir, "settings", LEGACY_MCP_SETTINGS_FILE_NAME),
 		})
 	}
 	const documentsDir = await getDocumentsPath()
 	sources.push({
 		id: "documentsClineMcp",
-		path: path.join(documentsDir, "Cline", "MCP", MCP_SETTINGS_FILE_NAME),
+		path: path.join(documentsDir, "Axline", "MCP", LEGACY_MCP_SETTINGS_FILE_NAME),
 	})
 	return sources
 }
 
 export function getSharedMcpSettingsPath(storage: StorageContext): string {
-	const explicitPath = process.env.CLINE_MCP_SETTINGS_PATH?.trim()
+	const explicitPath = process.env.AXLINE_MCP_SETTINGS_PATH?.trim() || process.env.CLINE_MCP_SETTINGS_PATH?.trim()
 	if (explicitPath) {
 		return explicitPath
 	}
 	const explicitDataDir = process.env.CLINE_DATA_DIR?.trim()
 	if (explicitDataDir) {
-		return path.join(explicitDataDir, "settings", MCP_SETTINGS_FILE_NAME)
+		return path.join(explicitDataDir, "settings", AXLINE_MCP_SETTINGS_FILE_NAME)
 	}
-	const clineDir = process.env.CLINE_DIR?.trim() || path.join(os.homedir(), ".cline")
-	return path.join(clineDir, "data", "settings", MCP_SETTINGS_FILE_NAME)
+	const homeDir = resolveStorageHomeDir()
+	return path.join(homeDir, "data", "settings", AXLINE_MCP_SETTINGS_FILE_NAME)
 }
 
 function readMigrationState(storage: StorageContext): JsonRecord {

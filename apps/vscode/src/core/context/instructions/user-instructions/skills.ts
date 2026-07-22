@@ -1,3 +1,4 @@
+import { type InstructionSystem, normalizeInstructionSystem } from "@cline/shared/storage"
 import { getSkillsDirectoriesForScan } from "@core/storage/skill-directories"
 import type { GlobalInstructionsFile } from "@shared/remote-config/schema"
 import type { SkillContent, SkillMetadata } from "@shared/skills"
@@ -217,10 +218,14 @@ async function loadSkillMetadata(
  * This is achieved by the array order + getAvailableSkills iterating in reverse (last wins):
  *   [project..., disk-global..., remote...]
  */
-export async function discoverSkills(cwd: string, remoteSkillEntries?: GlobalInstructionsFile[]): Promise<SkillMetadata[]> {
+export async function discoverSkills(
+	cwd: string,
+	remoteSkillEntries?: GlobalInstructionsFile[],
+	instructionSystem?: InstructionSystem,
+): Promise<SkillMetadata[]> {
 	const skills: SkillMetadata[] = []
 
-	const scanDirs = getSkillsDirectoriesForScan(cwd)
+	const scanDirs = getSkillsDirectoriesForScan(cwd, normalizeInstructionSystem(instructionSystem))
 
 	// Collect project and disk-global skills separately so we can insert remote between them
 	const projectSkills: SkillMetadata[] = []

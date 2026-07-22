@@ -49,9 +49,12 @@ describe("user instruction config loader", () => {
 		tempRoots.length = 0;
 	});
 
-	it("resolves legacy-compatible default search paths", () => {
+	it("resolves cokodo default skill paths under .agent (not legacy .agents)", () => {
 		const workspacePath = "/repo/demo";
-		expect(resolveSkillsConfigSearchPaths(workspacePath)).toEqual(
+		expect(resolveSkillsConfigSearchPaths(workspacePath)).toEqual([
+			join(workspacePath, ".agent", "skills"),
+		]);
+		expect(resolveSkillsConfigSearchPaths(workspacePath, "cline")).toEqual(
 			expect.arrayContaining([
 				join(workspacePath, ".clinerules", "skills"),
 				join(workspacePath, ".cline", "skills"),
@@ -75,10 +78,7 @@ describe("user instruction config loader", () => {
 		expect(paths).toContain(join(workspacePath, ".cline", "workflows"));
 		expect(
 			paths.some(
-				(p) =>
-					p.includes("Documents") &&
-					p.includes("Cline") &&
-					p.includes("Workflows"),
+				(p) => p.includes("Documents") && p.includes("Workflows"),
 			),
 		).toBe(true);
 		expect(paths).not.toContain(
@@ -409,7 +409,7 @@ New release workflow.`,
 		);
 
 		const watcher = createUserInstructionConfigWatcher({
-			workflows: { workspacePath: tempRoot },
+			workflows: { workspacePath: tempRoot, instructionSystem: "cline" },
 		});
 
 		await watcher.refreshAll();

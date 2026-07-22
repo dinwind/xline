@@ -1,6 +1,6 @@
-import { machineId } from "node-machine-id"
 import { v4 as uuidv4 } from "uuid"
 import { HostRegistryInfo } from "@/registry"
+import { getSharedMachineId } from "@/services/identity/machine-id-cache"
 import { Logger } from "@/shared/services/Logger"
 import { StorageContext } from "@/shared/storage"
 
@@ -8,6 +8,16 @@ import { StorageContext } from "@/shared/storage"
  * Unique identifier for the current installation.
  */
 let _distinctId = ""
+
+let hostRegistryInitPromise: Promise<void> | undefined
+
+/**
+ * Host banner/telemetry metadata is populated asynchronously during distinct ID init.
+ * Await before components that call HostRegistryInfo.get() (e.g. BannerService).
+ */
+export function ensureHostRegistryInfoReady(): Promise<void> {
+	return hostRegistryInitPromise ?? Promise.resolve()
+}
 
 /**
  * Some environments don't return a value for the machine ID. For these situations we generated
@@ -20,8 +30,8 @@ export async function initializeDistinctId(storage: StorageContext, uuid: () => 
 	let distinctId = storage.globalState.get<string>(_GENERATED_MACHINE_ID_KEY)
 
 	if (!distinctId) {
-		// Get the ID from the host environment.
-		distinctId = await getMachineId()
+		// Get the ID from the host environment (shared in-process cache).
+		distinctId = await getSharedMachineId()
 	}
 	if (!distinctId) {
 		// Fallback to generating a unique ID and keeping in global storage.
@@ -33,25 +43,9 @@ export async function initializeDistinctId(storage: StorageContext, uuid: () => 
 
 	setDistinctId(distinctId)
 
-	await HostRegistryInfo.init(distinctId)
+	hostRegistryInitPromise = HostRegistryInfo.init(distinctId)
 
 	Logger.log("[DistinctId] initialized:", distinctId)
-}
-
-/*
- * Get machine ID using node-machine-id package
- * This works across all platforms (VS Code, JetBrains, CLI)
- */
-async function getMachineId(): Promise<string | undefined> {
-	try {
-		// Get the machine ID using node-machine-id package
-		// This provides a deterministic ID across different operating systems
-		const id = await machineId()
-		return id
-	} catch (error) {
-		Logger.log("[DistinctId] Failed to get machine ID from node-machine-id", error)
-		return undefined
-	}
 }
 
 /*

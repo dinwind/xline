@@ -8,6 +8,32 @@ import { ShowMessageType } from "@/shared/proto/host/window"
 import { Logger } from "@/shared/services/Logger"
 import { getNonce } from "./getNonce"
 
+const DEV_SERVER_PROBE_TTL_MS = 5000
+const DEV_SERVER_PROBE_TIMEOUT_MS = 300
+let devServerProbeCache: { port: number; reachable: boolean; checkedAt: number } | null = null
+
+async function isDevServerReachable(port: number): Promise<boolean> {
+	const now = Date.now()
+	if (
+		devServerProbeCache &&
+		devServerProbeCache.port === port &&
+		now - devServerProbeCache.checkedAt < DEV_SERVER_PROBE_TTL_MS
+	) {
+		return devServerProbeCache.reachable
+	}
+
+	let reachable = false
+	try {
+		await axios.get(`http://localhost:${port}`, { timeout: DEV_SERVER_PROBE_TIMEOUT_MS })
+		reachable = true
+	} catch {
+		reachable = false
+	}
+
+	devServerProbeCache = { port, reachable, checkedAt: now }
+	return reachable
+}
+
 export abstract class WebviewProvider {
 	private static instance: WebviewProvider | null = null
 	controller: Controller
@@ -111,7 +137,7 @@ export abstract class WebviewProvider {
 					style-src ${this.getCspSource()} 'unsafe-inline'; 
 					img-src ${this.getCspSource()} https: data:; 
 					script-src 'nonce-${nonce}' 'unsafe-eval';">
-				<title>Cline</title>
+				<title>Axline</title>
 			</head>
 			<body>
 				<noscript>You need to enable JavaScript to run this app.</noscript>
@@ -160,15 +186,13 @@ export abstract class WebviewProvider {
 		const localServerUrl = `localhost:${localPort}`
 
 		// Check if local dev server is running.
-		try {
-			await axios.get(`http://${localServerUrl}`)
-		} catch (_error) {
+		if (!(await isDevServerReachable(localPort))) {
 			// Only show the error message when in development mode.
 			if (process.env.IS_DEV) {
 				HostProvider.window.showMessage({
 					type: ShowMessageType.ERROR,
 					message:
-						"Cline: Local webview dev server is not running, HMR will not work. Please run 'bun run dev:webview' before launching the extension to enable HMR. Using bundled assets.",
+						"Axline: Local webview dev server is not running, HMR will not work. Please run 'bun run dev:webview' before launching the extension to enable HMR. Using bundled assets.",
 				})
 			}
 
@@ -209,7 +233,7 @@ export abstract class WebviewProvider {
 					<meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
 					<meta http-equiv="Content-Security-Policy" content="${csp.join("; ")}">
 					<link rel="stylesheet" type="text/css" href="${stylesUrl}">
-					<title>Cline</title>
+					<title>Axline</title>
 				</head>
 				<body>
 					<div id="root"></div>

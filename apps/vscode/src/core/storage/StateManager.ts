@@ -17,8 +17,10 @@ import {
 } from "@shared/storage/state-keys"
 import type { StorageContext } from "@shared/storage/storage-context"
 import { FSWatcher } from "chokidar"
+import { initializeInstallationId } from "@/services/identity/installation-id"
 import { initializeDistinctId } from "@/services/logging/distinctId"
 import { Logger } from "@/shared/services/Logger"
+import { StartupTimer } from "@/utils/startup-timer"
 import { AgentConfigLoader } from "../task/tools/subagent/AgentConfigLoader"
 import { readTaskSettingsFromStorage, writeTaskSettingsToStorage } from "./disk"
 import { STATE_MANAGER_NOT_INITIALIZED } from "./error-messages"
@@ -127,12 +129,19 @@ export class StateManager {
 		}
 
 		try {
-			await initializeDistinctId(storage)
+			const timer = new StartupTimer("stateManager")
+			// Kick off agent config disk scan in parallel with identity + state reads.
+			const agentLoader = AgentConfigLoader.getInstance()
 
-			// Load all extension state from file-backed stores
-			const globalState = await readGlobalStateFromStorage(storage.globalState)
-			const secrets = readSecretsFromStorage(storage.secrets)
-			const workspaceState = readWorkspaceStateFromStorage(storage.workspaceState)
+			await Promise.all([initializeDistinctId(storage), initializeInstallationId(storage)])
+			timer.mark("identity")
+
+			const [globalState, secrets, workspaceState] = await Promise.all([
+				readGlobalStateFromStorage(storage.globalState),
+				Promise.resolve(readSecretsFromStorage(storage.secrets)),
+				Promise.resolve(readWorkspaceStateFromStorage(storage.workspaceState)),
+			])
+			timer.mark("readStorage")
 
 			// Populate the cache with all extension state and secrets fields
 			// Use populate method to avoid triggering persistence during initialization
@@ -140,7 +149,11 @@ export class StateManager {
 
 			StateManager.instance.isInitialized = true
 
-			await AgentConfigLoader.getInstance().ready()
+			// Agent YAML scan is not needed for first paint — load in background.
+			void agentLoader.ready().catch((error) => {
+				Logger.error("[StateManager] AgentConfigLoader failed during background init:", error)
+			})
+			timer.finish()
 		} catch (error) {
 			Logger.error("[StateManager] Failed to initialize:", error)
 			throw error

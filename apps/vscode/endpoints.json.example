@@ -1,4 +1,4 @@
 {
-	"axgateBaseUrl": "http://auth.mtsilicon.com:6100",
+	"axgateBaseUrl": "https://auth.mtsilicon.com:6343",
 	"authAppId": "app_uu1Sn7yC"
 }

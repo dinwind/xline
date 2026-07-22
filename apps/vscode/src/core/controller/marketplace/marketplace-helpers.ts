@@ -36,6 +36,7 @@ import {
 	ToggleMarketplaceLocalInstalledEntryRequest,
 } from "@shared/proto/cline/marketplace"
 import { HostProvider } from "@/hosts/host-provider"
+import { resolveStorageHomeDir } from "@/shared/axline-dir"
 import type { Controller } from "../index"
 
 type MarketplaceType = "mcp" | "skill" | "plugin"
@@ -150,7 +151,7 @@ function hashSource(source: string): string {
 }
 
 function resolveClineHome(): string {
-	return process.env.CLINE_DIR?.trim() || join(homedir(), ".cline")
+	return resolveStorageHomeDir()
 }
 
 function sanitizeSegment(value: string): string {

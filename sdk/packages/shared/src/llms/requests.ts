@@ -1,6 +1,6 @@
 export const DEFAULT_REQUEST_HEADERS: Record<string, string> = {
 	"HTTP-Referer": "https://cline.bot",
-	"X-Title": "Cline",
+	"X-Title": "Axline",
 	"X-IS-MULTIROOT": "false",
 	"X-CLIENT-TYPE": "cline-sdk",
 };

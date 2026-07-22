@@ -1,8 +1,16 @@
-import { fetchAxgateSession, getValidAxgateCredentials, loginAxgate, type OAuthCredentials } from "@cline/core"
+import {
+	fetchAxgateSession,
+	getValidAxgateCredentials,
+	loginAxgate,
+	type OAuthCredentials,
+	stripAxgateTokenPrefix,
+} from "@cline/core"
 import type { ClineAccountUserInfo, ClineAuthInfo } from "../auth-types"
 import { configureAxgateProviderAfterLogin } from "./auto-config"
+import { resolveAxgateClientIdentity, resolveAxgateClientIdentityWithToken } from "./client-identity"
 import { getAxgateConfig, toAxgateAuthConfig } from "./config"
 import { clearAxgateCredentials, readAxgateCredentials, writeAxgateCredentials } from "./credentials"
+import { ensureAxgateDeviceRegistered } from "./device-service"
 
 function sessionToUserInfo(
 	session: Awaited<ReturnType<typeof fetchAxgateSession>>,
@@ -41,19 +49,29 @@ function credentialsToAuthInfo(credentials: OAuthCredentials, userInfo: ClineAcc
 	}
 }
 
+async function withClientIdentity<T>(
+	run: (clientIdentity: ReturnType<typeof resolveAxgateClientIdentity>) => Promise<T>,
+): Promise<T> {
+	return run(resolveAxgateClientIdentity())
+}
+
 export async function axgateLoginWithCredentials(username: string, password: string): Promise<ClineAuthInfo> {
 	const config = getAxgateConfig()
 	if (!config) {
-		throw new Error("AxGate is not configured. Set axgateBaseUrl in endpoints.json or AXLINE_AXGATE_BASE_URL.")
+		throw new Error("AxGate is not configured. Set axgateBaseUrl in ~/.axline/endpoints.json or AXLINE_AXGATE_BASE_URL.")
 	}
 
-	const credentials = await loginAxgate({
-		...toAxgateAuthConfig(config),
-		username,
-		password,
-	})
+	const authConfig = toAxgateAuthConfig(config)
+	const credentials = await withClientIdentity((clientIdentity) =>
+		loginAxgate({
+			...authConfig,
+			username,
+			password,
+			clientIdentity,
+		}),
+	)
 
-	const session = await fetchAxgateSession(toAxgateAuthConfig(config), credentials.access)
+	const session = await fetchAxgateSession(authConfig, credentials.access, resolveAxgateClientIdentity())
 	const userInfo = sessionToUserInfo(session)
 	const authInfo = credentialsToAuthInfo(credentials, userInfo)
 
@@ -63,6 +81,7 @@ export async function axgateLoginWithCredentials(username: string, password: str
 		accountId: userInfo.id,
 	})
 	await configureAxgateProviderAfterLogin(credentials.access)
+	await ensureAxgateDeviceRegistered(credentials.access)
 
 	return authInfo
 }
@@ -87,6 +106,7 @@ export async function axgateRestoreAuthInfo(): Promise<ClineAuthInfo | null> {
 		provider: "axgate",
 	}
 
+	const clientIdentity = await resolveAxgateClientIdentityWithToken().catch(() => resolveAxgateClientIdentity())
 	const valid = await getValidAxgateCredentials(
 		{
 			access: restored.idToken,
@@ -94,6 +114,8 @@ export async function axgateRestoreAuthInfo(): Promise<ClineAuthInfo | null> {
 			expires: restored.expiresAt ? restored.expiresAt * 1000 : Date.now() + 3600_000,
 		},
 		{ baseUrl: config.baseUrl, appId: config.authAppId },
+		{},
+		clientIdentity,
 	)
 
 	if (!valid) {
@@ -109,12 +131,13 @@ export async function axgateRestoreAuthInfo(): Promise<ClineAuthInfo | null> {
 
 	let userInfo = restored.userInfo
 	try {
-		const session = await fetchAxgateSession(toAxgateAuthConfig(config), valid.access)
+		const session = await fetchAxgateSession(toAxgateAuthConfig(config), valid.access, clientIdentity)
 		userInfo = sessionToUserInfo(session, creds.accountId)
 	} catch {
 		// Keep minimal profile if session lookup fails during restore.
 	}
 
+	await ensureAxgateDeviceRegistered(valid.access)
 	return credentialsToAuthInfo(valid, userInfo)
 }
 
@@ -124,6 +147,7 @@ export async function axgateRefreshAuthInfo(authInfo: ClineAuthInfo): Promise<Cl
 		return null
 	}
 
+	const clientIdentity = await resolveAxgateClientIdentityWithToken().catch(() => resolveAxgateClientIdentity())
 	const valid = await getValidAxgateCredentials(
 		{
 			access: authInfo.idToken,
@@ -132,6 +156,7 @@ export async function axgateRefreshAuthInfo(authInfo: ClineAuthInfo): Promise<Cl
 		},
 		{ baseUrl: config.baseUrl, appId: config.authAppId },
 		{ forceRefresh: true },
+		clientIdentity,
 	)
 
 	if (!valid) {
@@ -147,7 +172,7 @@ export async function axgateRefreshAuthInfo(authInfo: ClineAuthInfo): Promise<Cl
 
 	let userInfo = authInfo.userInfo
 	try {
-		const session = await fetchAxgateSession(toAxgateAuthConfig(config), valid.access)
+		const session = await fetchAxgateSession(toAxgateAuthConfig(config), valid.access, clientIdentity)
 		userInfo = sessionToUserInfo(session, authInfo.userInfo.id)
 	} catch {
 		// Preserve previous profile on refresh failure.
@@ -163,7 +188,8 @@ export async function axgateFetchUserInfo(accessToken: string): Promise<ClineAcc
 	}
 
 	try {
-		const session = await fetchAxgateSession(toAxgateAuthConfig(config), accessToken)
+		const clientIdentity = await resolveAxgateClientIdentityWithToken().catch(() => resolveAxgateClientIdentity())
+		const session = await fetchAxgateSession(toAxgateAuthConfig(config), accessToken, clientIdentity)
 		return sessionToUserInfo(session)
 	} catch {
 		return null
@@ -175,7 +201,7 @@ export function axgateClearCredentials(): void {
 }
 
 export function axgateGetBearerToken(accessToken: string): string {
-	return accessToken
+	return stripAxgateTokenPrefix(accessToken)
 }
 
 export async function axgateEnsureValidAuthInfo(authInfo: ClineAuthInfo): Promise<ClineAuthInfo | null> {

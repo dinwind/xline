@@ -64,6 +64,24 @@ function commandExists(name) {
 	}
 }
 
+/** VS Code CLI still uses deprecated url.parse() when syncing gallery metadata (DEP0169). */
+function envSuppressingVsCodeDeprecationWarning() {
+	const flag = "--disable-warning=DEP0169"
+	const existing = process.env.NODE_OPTIONS?.trim()
+	return {
+		...process.env,
+		NODE_OPTIONS: existing ? `${existing} ${flag}` : flag,
+	}
+}
+
+function installVsix(vsixPath) {
+	execSync(`code --install-extension "${vsixPath}" --force`, {
+		stdio: "inherit",
+		env: envSuppressingVsCodeDeprecationWarning(),
+		shell: true,
+	})
+}
+
 function main() {
 	console.log("Axline VS Code build")
 	console.log(`  repo:   ${REPO_ROOT}`)
@@ -95,11 +113,12 @@ function main() {
 			console.error("ERROR: `code` CLI not found. Install VS Code shell command or run without --install.")
 			process.exit(1)
 		}
-		run("Install extension", `code --install-extension "${VSIX_PATH}" --force`)
+		console.log("\n==> Install extension")
+		installVsix(VSIX_PATH)
 		console.log(`  Installed: ${EXTENSION_ID}`)
 		console.log("  Reload VS Code (Developer: Reload Window) to activate.")
 	} else {
-		console.log(`  Install: code --install-extension "${VSIX_PATH}" --force`)
+		console.log(`  Install: bun run install:vscode`)
 	}
 }
 

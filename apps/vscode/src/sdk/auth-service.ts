@@ -548,7 +548,9 @@ export class AuthService {
 	async loginWithCredentials(username: string, password: string): Promise<String> {
 		const { String: ProtoString } = await import("@shared/proto/cline/common")
 		if (!isAxgateAuthEnabled()) {
-			throw new Error("Credential login is only available when AxGate is configured")
+			throw new Error(
+				"Credential login is only available when AxGate is configured. Set axgateBaseUrl in ~/.axline/endpoints.json or AXLINE_AXGATE_BASE_URL.",
+			)
 		}
 
 		try {
