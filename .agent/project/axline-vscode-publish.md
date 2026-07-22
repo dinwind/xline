@@ -14,19 +14,36 @@
 
 ## 阶段一：本地 VSIX 分发（当前进行中）
 
+### 私有更新（AuthNexus，方案 A）
+
+内网自动更新：扩展内检查 AuthNexus 软件发布 API，下载并安装 VSIX。
+
+**完整 SOP**：`.agent/project/sop/axline-private-update.md`
+
+```powershell
+# 标准一键发布（build → enterprise → upload → verify）
+bun apps/vscode/scripts/release-private-vsix.mjs
+
+# 分步等价流程见 sop/axline-private-update.md
+```
+
+**注意**：`endpoints.json` 仅本机使用，打包前须从 `apps/vscode/` 删除，避免 secrets 进入 VSIX。
+
+配置模板：`apps/vscode/endpoints.example.json`、`apps/vscode/secrets.example.json`（复制字段到 `~/.axline/`，管理员凭据写入 `secrets.json` 一次即可）。
+
 ### 目标
 
 用户通过下载 `.vsix` 文件安装 Axline，无需 Marketplace 账号、PAT 或 CI 发布流水线。
 
 ### 必须做的改动
 
-- [ ] `apps/vscode/package.json`：扩展身份（`publisher: axline`, `name: axline`, `displayName: Axline`, `version: 0.1.0`）
-- [ ] 命令/视图 ID：`cline.*` → `axline.*`，`claude-dev-*` → `axline-*`
-- [ ] `registry.ts`：删除 `claude-dev` 特例
-- [ ] `.vscode/launch.json`：禁用扩展 ID 更新
-- [ ] 用户可见品牌化（侧边栏、欢迎页、walkthrough）
-- [ ] 根 `README.md`：VSIX 安装说明
-- [ ] 本地构建并打包 VSIX
+- [x] `apps/vscode/package.json`：扩展身份（`publisher: axline`, `name: axline`, `displayName: Axline`）
+- [x] 命令/视图 ID：`cline.*` → `axline.*`，`claude-dev-*` → `axline-*`
+- [x] `registry.ts`：删除 `claude-dev` 特例
+- [x] `.vscode/launch.json`：禁用扩展 ID 更新
+- [x] 用户可见品牌化（侧边栏、欢迎页、walkthrough、终端/Output、diff/code actions、Documents/`Axline`）
+- [x] 根 `README.md`：VSIX 安装说明
+- [x] 本地构建并打包 VSIX
 
 ### 可暂缓
 
@@ -35,8 +52,7 @@
 - `~/.cline` → `~/.axline` 数据目录迁移
 - OAuth redirect URI（BYOK 模式下账号登录可暂不可用）
 - `README.marketplace.md`、CI 发布 workflow
-
-### 打包命令
+- 内部类型/符号名（`ClineMessage`、`ClinePass` 等；阶段二再统一）
 
 ```powershell
 cd c:\ai_work\axline

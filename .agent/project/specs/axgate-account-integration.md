@@ -1,8 +1,8 @@
 # Axline × AxGate 定制 Account 集成方案
 
 > **Status**: Revised — 已吸收第三方评审全部 findings（[`reviews/axgate-account-integration-review.md`](reviews/axgate-account-integration-review.md)）  
-> **Version**: 0.3.2 — 补充跨 app 用户关联契约：AuthNexus/AxGate 使用全局稳定用户 ID 关联 `axgate` 与 `axline` 用户  
-> **Updated**: 2026-07-09  
+> **Version**: 0.3.3 — Feedback Hub：AUTH-02 / 拓扑原则明确「Account+LLM 不得直连 AuthNexus；Feedback 资源 API 为已决议例外」  
+> **Updated**: 2026-07-17  
 > **Audience**: Axline 开发、AxGate / AuthNexus 联调、第三方审核  
 > **Authority**: 本文件为 Axline 侧 Account 定制集成的 canonical 设计说明；AxGate 后端契约以 AxGate 仓库 living specs 为准。
 
@@ -25,7 +25,8 @@
 | 决策项 | 结论 | 依据 |
 |--------|------|------|
 | 登录方式 | 用户名 + 密码表单（后端为 AppRole 凭证式换 JWT） | 已确认 |
-| Auth 入口 | 经 **AxGate BFF** 转发，不直连 AuthNexus | 与 AxGate Console 同源；客户端不感知 AuthNexus 拓扑 |
+| Auth 入口 | **Account / LLM** 经 **AxGate BFF**，不直连 AuthNexus | 与 AxGate Console 同源 |
+| Feedback 资源 API | **已决议例外**：Extension host 可直连 AuthNexus Feedback REST（见 [`plan/authnexus-feedback-client.md`](../plan/authnexus-feedback-client.md) §6.1）；生产 HTTPS | Feedback Hub 权威在 AuthNexus；避免无谓扩大 BFF；A0 不可达则改 AxGate 反代默认 |
 | **Auth appId** | **独立注册 `axline`**（不复用 `axgate`） | 评审 OQ-01 决议：audience 隔离 + 角色封顶 + 独立吊销 + 审计归因 |
 | appId 传递 | 客户端声明 + BFF 白名单校验 | 评审 F-5：双客户端共用 BFF，纯服务端注入无法区分来源 |
 | 权限模型 | 客户端身份拆分，用户权限合并（AxGate 集中裁决） | 行业实践（OAuth2 多客户端 + 网关模式） |
@@ -73,12 +74,13 @@ flowchart TB
 
 ### 3.2 设计原则
 
-1. **Single gateway**：Axline 所有 Account 与 LLM 流量经 AxGate，用户不持有云厂商 API Key。
-2. **客户端身份拆分**：Axline 在 AuthNexus 注册独立 `axline` app。JWT 的 appId/audience 标识签发来源，实现 audience 隔离、按客户端角色封顶、独立吊销、可信审计归因。
-3. **用户权限合并**：provider 可见性、模型白名单、quota 挂在用户（`sub`）+ 角色上，由 AxGate 按 JWT claims 现场集中裁决；Axline 侧零权限配置。
-4. **Token 不出 extension host**：JWT 仅存在于 extension host；webview 只收展示字段。
-5. **Fail closed**：凭证失效阻止未授权推理；但 403（权限不足）不等于凭证失效，不触发登出。
-6. **Fork isolation**：Axline 定制逻辑集中在 `apps/vscode/src/sdk/axgate/` 与 SDK `auth/axgate.ts`，降低 Cline upstream 合并冲突。
+1. **Single gateway（Account + LLM）**：Axline 所有 **Account 与 LLM** 流量经 AxGate，用户不持有云厂商 API Key。客户端对 **登录/刷新/推理** 不感知 AuthNexus 拓扑。
+2. **Feedback 例外**：用户反馈资源 API 以 AuthNexus Feedback Hub 为权威；允许 Extension host **直连** AuthNexus `/api/apps/{axline}/feedback*`（AUTH-02 例外）。生产 `authnexusBaseUrl` 必须 HTTPS。若 A0 验证客户端网络不可达 AuthNexus，则改为经 AxGate `/api/feedback/*` 反代（默认切换，非并行双轨）。
+3. **客户端身份拆分**：Axline 在 AuthNexus 注册独立 `axline` app。JWT 的 appId/audience 标识签发来源，实现 audience 隔离、按客户端角色封顶、独立吊销、可信审计归因。
+4. **用户权限合并**：provider 可见性、模型白名单、quota 挂在用户（`sub`）+ 角色上，由 AxGate 按 JWT claims 现场集中裁决；Axline 侧零权限配置。
+5. **Token 不出 extension host**：JWT 仅存在于 extension host；webview 只收展示字段。
+6. **Fail closed**：凭证失效阻止未授权推理；但 403（权限不足）不等于凭证失效，不触发登出。
+7. **Fork isolation**：Axline 定制逻辑集中在 `apps/vscode/src/sdk/axgate/` 与 SDK `auth/axgate.ts`（及 `services/feedback/`），降低 Cline upstream 合并冲突。
 
 ### 3.3 身份与权限模型
 
@@ -295,7 +297,7 @@ appId 传递规则（login 与 refresh 一致）：**客户端声明 `appId` + A
   "version": "0.1.0",
   "auth_disabled": false,
   "local_authz_enabled": true,
-  "authnexus_base_url": "http://auth.mtsilicon.com:3000",
+  "authnexus_base_url": "https://auth.mtsilicon.com",
   "authnexus_app_id": "axline",
   "principal": {
     "subject": "user-subject-id",
@@ -424,7 +426,7 @@ rpc accountLoginWithCredentials(AccountLoginRequest) returns (String);
 }
 ```
 
-读取优先级：VSIX 内置 → `~/.cline/endpoints.json` → 环境变量（`AXLINE_AXGATE_BASE_URL`）。生产环境 `axgateBaseUrl` 必须 HTTPS。
+读取优先级：VSIX 内置（仅公开字段）→ `~/.axline/endpoints.json` → legacy `~/.cline/endpoints.json` → 环境变量（`AXLINE_AXGATE_BASE_URL`）。`updateEnrollmentCode` 从 `~/.axline/secrets.json` 或 `AXLINE_UPDATE_ENROLLMENT_CODE` 读取，不得打进 VSIX。生产环境 `axgateBaseUrl` 必须 HTTPS。
 
 ---
 
@@ -435,7 +437,7 @@ rpc accountLoginWithCredentials(AccountLoginRequest) returns (String);
 | ID | 需求 | 优先级 |
 |----|------|--------|
 | AUTH-01 | Axline SHALL 提供用户名/密码登录表单，替代 "Sign up with Cline" | P0 |
-| AUTH-02 | 登录 SHALL 调用 `POST {axgate}/api/auth/login`（`appId=axline`），不得直连 Cline/WorkOS/AuthNexus | P0 |
+| AUTH-02 | 登录 SHALL 调用 `POST {axgate}/api/auth/login`（`appId=axline`），不得直连 Cline/WorkOS/AuthNexus 做**登录/刷新**。**例外**：Feedback Hub 资源 API 允许按 [`plan/authnexus-feedback-client.md`](../plan/authnexus-feedback-client.md) §6.1 直连 AuthNexus（或经 AxGate feedback 反代）；不得用该例外绕过 Account/LLM 网关 | P0 |
 | AUTH-03 | 登录成功后 SHALL 以 `access_token` 为 canonical 写入 `providers.json` 的 `axgate` provider | P0 |
 | AUTH-04 | 密码 SHALL NOT 被持久化、记录日志或上报 telemetry | P0 |
 | AUTH-05 | JWT 临近过期（`exp - now ≤ 5min`，以 JWT `exp` 为准）时 SHALL 经 single-flight 自动 refresh | P0 |
@@ -488,9 +490,9 @@ rpc accountLoginWithCredentials(AccountLoginRequest) returns (String);
 |---|------|----------|
 | SEC-01 | 密码不得出现在日志、crash report、telemetry | 代码审查 + 集成测试 |
 | SEC-02 | JWT 仅 extension host 持有；`AuthState` 等 webview 消息不得含 token | 代码审查 + 架构审查 |
-| SEC-03 | 生产环境 axgateBaseUrl 必须 HTTPS | endpoints.json 校验 |
+| SEC-03 | 生产环境 `axgateBaseUrl` 必须 HTTPS；若启用 Feedback 直连，生产 `authnexusBaseUrl` 亦必须 HTTPS | endpoints.json 校验 |
 | SEC-04 | refresh 失败必须 deauth；refresh 必须 single-flight | 单元测试 |
-| SEC-05 | 不得在 UI 或错误信息中泄露 AuthNexus 内部路径 | 代码审查 |
+| SEC-05 | 不得在 UI 或错误信息中泄露 AuthNexus **内部未公开**拓扑细节；Feedback 使用的公开 `authnexusBaseUrl` 除外 | 代码审查 |
 | SEC-06 | `AccountLoginRequest.password` 传输限于 webview→extension 本地通道 | 架构审查 |
 | SEC-07 | IDE 签发 token 权限封顶 caller（role-map `axline` 段），不得获得 admin/operator 能力 | 联调验证（`/api/session/me` roles） |
 | SEC-08 | 登录端点 429 限流被客户端正确处理；登录表单无自动重试 | 集成测试 |
@@ -725,6 +727,25 @@ AxGate 侧完成本节需求后，应提供以下联调证据：
 6. `/v1/models` 与 `/v1/chat/completions` 可使用 `axline` JWT 调通。
 7. 未开通 `axline` app 的用户返回可诊断的 403，不表现为 401。
 8. 同一用户的 `axgate` token 与 `axline` token 解析出的 canonical subject 一致。
+
+### AG-08 · Axline agent mode 联动（plan / act / auto）
+
+**Status**: Implemented (2026-07-14) — Axline sends `X-AxGate-Agent-Mode`; login reads `mode_defaults`.
+
+**需求**：
+
+1. Axline 每次 `/v1/chat/completions` 请求携带 `X-AxGate-Agent-Mode`（`auto` / `plan` / `act`），映射规则：
+   - Plan 会话 → `plan`
+   - Act 会话 + `model` 为 `auto` / `ax_auto` → `auto`
+   - Act 会话 + 显式模型 id → `act`
+2. 登录后读取 `/api/account/summary.mode_defaults`，分别初始化 `planModeApiModelId` 与 `actModeApiModelId`。
+3. AxGate 在 `model: auto` 时按 provider `mode_models[agent_mode]` 选上游模型（见 AxGate `provider-model-catalog.md`）。
+
+**验收**：
+
+- Plan 模式下 AxGate audit / 上游模型与 Console 配置的 plan default 一致。
+- Auto 模式下走 `mode_models.auto`；Agent + 显式模型走指定 logical id。
+- 抓包可见 `X-AxGate-Agent-Mode` 与 UI 模式一致。
 
 ---
 
