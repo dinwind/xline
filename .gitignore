@@ -92,4 +92,5 @@ apps/vscode/tsconfig.test.generated.json
 *.pyc
 apps/vscode/endpoints.json
 apps/vscode/secrets.json
+tsc-trace.txt
 
