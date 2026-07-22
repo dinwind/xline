@@ -1,0 +1,14 @@
+---
+paths:
+  - ".agent/project/specs/*-ui*.md"
+  - ".agent/core/workflows/ui-design-workflow.md"
+---
+
+# UI / Frontend Guidelines
+
+When creating or modifying UI/frontend work:
+
+- Read `.agent/core/workflows/ui-design-workflow.md` first.
+- Read the relevant project UI spec under `.agent/project/specs/` (for example `*-ui*.md`).
+- Match existing component patterns and accessibility conventions in the codebase.
+- Do not add external CDN links (project rule).
