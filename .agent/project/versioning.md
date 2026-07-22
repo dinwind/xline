@@ -1,211 +1,134 @@
 # Versioning Policy
 
-> Authoritative version-governance policy for this project. Keep this file human-readable; machine-readable state belongs in `project/version-state.toml`.
+> Authoritative version governance for Axline product artifacts, release notes, tags, and rollback boundaries.
 
 ---
 
 ## Governance Principles
 
-Document the project's version-governance rules here.
+Axline uses **1 primary product track** (`vscode`) and applies the following rules:
 
-Recommended principles:
-
-1. Each releasable product line has an explicit **track**.
-2. Each track has exactly one **canonical version source**.
+1. The VS Code extension is the releasable product line for phase-1 VSIX distribution.
+2. The track has **exactly one** canonical version source.
 3. Human-readable policy and machine-readable state are separated:
-   - policy: `project/versioning.md`
-   - state: `project/version-state.toml`
-4. Release notes are **handoff contracts**, not just marketing summaries.
-5. Tags and rollback baselines follow one documented rule per track.
+   - policy: `.agent/project/versioning.md`
+   - state: `.agent/project/version-state.toml`
+4. Release tags must be **annotated**, **track-prefixed**, and **rollback-friendly**.
+5. Release notes are **handoff contracts**, not marketing summaries.
 
 ---
 
 ## Version Tracks
 
-List every track that can be released independently.
-
 | Track | Scope | Canonical source | Notes |
 |------|-------|------------------|-------|
-| `primary` | `[Describe the main artifact or product line]` | `[path/to/version-source]` | `[Optional notes]` |
-
-If your project has multiple product lines in one repository, add one row per track.
+| `vscode` | Axline VS Code extension (`axline.axline`), VSIX, private AuthNexus updates | `apps/vscode/package.json` → `version` | SDK workspace packages (`@cline/*`) are build dependencies; do not invent a separate consumer-facing track until they are published independently. |
 
 ---
 
 ## Current State Source
 
-The machine-readable state should live in:
+The authoritative machine-readable state lives in:
 
-- `project/version-state.toml`
+- `.agent/project/version-state.toml`
 
-This file should answer, per track:
+This file must answer, per track:
 
-- latest stable release
-- current working version
-- release status
-- release-note path
+- latest stable release (`current_release`)
+- current working version (`working_version`)
+- release status (`planning`, `developing`, `frozen`, `released`, `hotfix`)
+- release note path
 - release tag
 - rollback baseline
-- compatibility notes if applicable
 
-If this project does not use machine-readable version state yet, describe that explicitly here and add it before automating releases.
+If `versioning.md` and `version-state.toml` disagree, fix the state file first.
+
+Important:
+
+- opening the next development version does **not** require immediately bumping the canonical source **as long as no runtime-affecting code has been added on top of `current_release`**
+- **as soon as the first code change that affects runtime behavior** lands, bump `apps/vscode/package.json` to `working_version` in the same change
+- during `developing` / `frozen` the canonical source is expected to equal `working_version`
+- pure documentation / protocol scaffolding does not by itself require an early bump
 
 ---
 
-## SemVer / Version Policy
+## Drift Guard (`package.json` ↔ `version-state.toml`)
 
-Describe how version numbers are interpreted.
+**Invariant:**
 
-Recommended structure:
+> for the enabled `vscode` track, `apps/vscode/package.json.version == version-state.toml.tracks.vscode.working_version` once runtime work for that working version has started
 
-- `MAJOR`: `[breaking-change rule]`
-- `MINOR`: `[feature-expansion rule]`
-- `PATCH`: `[bugfix or packaging-fix rule]`
+| Layer | Asset | Behavior |
+|-------|-------|----------|
+| Local check | `scripts/verify-versions.mjs` | exit 1 on drift |
+| Protocol lint | `co lint --rule version-state` | schema + canonical consistency |
+| AI agent | This policy + `status.md` Version Cycle | read before release / bump work |
 
-If protocol/API/schema versions are separate from product versions, document that separation here.
+Operator checklist:
+
+- before the first runtime commit on a new working version, bump `apps/vscode/package.json` and `version-state.toml` together
+- before commit / VSIX cut, run `node scripts/verify-versions.mjs` and `co lint --rule version-state`
+- never hand-edit only one of package.json / version-state working_version
+
+---
+
+## SemVer Policy
+
+Product track uses **SemVer**:
+
+- `MAJOR`: backward-incompatible extension behavior or install contract change
+- `MINOR`: backward-compatible feature expansion (new settings, private-update, account features)
+- `PATCH`: bug fix or packaging-only fix
 
 ---
 
 ## Derived Files
 
-For each track, list files that derive their version from the canonical source.
+### `vscode`
 
-### `primary`
+Canonical: `apps/vscode/package.json`
 
-Derived from `[path/to/version-source]`:
+Derived / produced by build (not hand-edited as version source):
 
-- `[derived/file-1]`
-- `[derived/file-2]`
-
-Rules:
-
-- Never treat derived files as the primary edit point.
-- Synchronize derived files from the canonical source using project-local scripts where possible.
-
----
-
-## Release Documentation Refresh
-
-This project follows the generic Release Documentation Refresh workflow:
-
-- engine rule: `core/workflows/release-doc-refresh-workflow.md`
-- project SOP: `project/sop/release-doc-refresh.md`
-- CLI gate: `co release-docs check [--track <name>] [--allow-draft]`
-- agent entry point: `co release-docs refresh --mode audit|apply`
-
-A formal release MUST NOT be cut until `co release-docs check` passes for the target track without `--allow-draft`. Project-specific doc indexes and generated assets are declared per track in `project/version-state.toml` under `[tracks.<name>.release_docs]` (`index_files`, `manifest_files`, `manifest_pattern_template`, optional `allowed_versions` / `version_regex`).
-
----
-
-## Release Notes Policy
-
-Document what every release note must contain.
-
-Recommended fields:
-
-- version
-- previous stable version
-- release tag
-- rollback tag
-- compatibility notes
-- included scope
-- excluded/deferred scope
-- validation checklist
-- risks
-- traceability (`canonical source`, scripts, tag)
-
-If multiple tracks exist, keep release notes track-specific.
+- `apps/vscode/dist/axline.vsix`
+- AuthNexus release metadata (when publishing private update)
 
 ---
 
 ## Tagging Policy
 
-Document the project's release-tag format.
-
-Recommended rules:
-
-- use annotated tags
-- keep the format unambiguous per track
-- multi-track monorepos should prefer track-prefixed tags such as `client/vX.Y.Z`
-- never delete and recreate the same released tag
-
-Write your project's concrete formats here:
-
-- primary track tag: `[example: vX.Y.Z or primary/vX.Y.Z]`
-- secondary track tag (if any): `[example]`
+- Use annotated tags
+- Format: `vscode/vX.Y.Z`
+- Never delete and recreate a released tag
 
 ---
 
 ## Rollback Policy
 
-Document rollback rules for this project.
-
-Recommended split:
-
-- **Artifact rollback**: revert to a previous released artifact/deployment
-- **Git rollback**: use the previous stable tag as the recovery baseline, then publish a new hotfix version
-
-Important rule:
-
-- Never reuse the same released version number after content changes.
+- **Artifact rollback**: install the previous VSIX / AuthNexus release referenced by `rollback_tag`
+- **Git rollback**: use `rollback_tag` as the recovery baseline, then publish a new hotfix version
+- Never reuse the same released version number after content changes
 
 ---
 
-## Drift Guard (canonical source ↔ version-state.toml)
+## Release Execution
 
-> Mandatory once any runtime change has been committed for `working_version`.
-> Backed by `core/workflows/version-governance-workflow.md` §4 "Drift guard".
+| Step | Command / asset |
+|------|-----------------|
+| Verify versions | `node scripts/verify-versions.mjs` |
+| Lint version state | `co lint --rule version-state` |
+| Build VSIX | `bun run build:vscode` |
+| Private publish helper | `bun apps/vscode/scripts/publish-private-vsix.mjs` |
+| Install locally | `bun run install:vscode` |
+| SOP | `.agent/project/sop/release.md` |
 
-### Invariants
-
-1. During `developing` / `frozen`: `<canonical-source>.version == version-state.toml::tracks.<track>.working_version`.
-2. The first runtime commit for a new `working_version` MUST bump the canonical source in the same commit (or via the project bump script). Do not accumulate runtime changes against an outdated canonical version.
-3. `status = "released"` is the only state where `working_version == current_release == canonical` is allowed; entering the next iteration restores invariant 1 immediately.
-4. Derived files (e.g. mirrored `__version__`, packaging manifests, bundled copies) are written only by the bump/sync script — never by hand without the canonical change.
-
-### Required tooling (project layer)
-
-| Tool | Role |
-|------|------|
-| `[scripts/verify-versions.*]` | Local validator: reads canonical source + `version-state.toml`, asserts invariants 1–2; non-zero exit on drift. |
-| `[scripts/bump-version.*]` | The only sanctioned writer for canonical + state + release-note draft (atomic). |
-| **CI gate `QG-0: version-drift`** | First job in release/CI pipeline; runs the validator; failure blocks build/publish. |
-| `co lint --rule version-state` | Protocol-layer schema/consistency check (complementary to drift guard). |
-| `project/known-issues.md` drift entry | Records why this guard exists and the remediation playbook. |
-
-If any of the four project-layer assets above is missing, do not land the first non-doc runtime change for the new `working_version`; add the drift guard first.
-
-### Operator checklist
-
-- [ ] Runtime change in this commit? → ran the bump script; canonical source, `version-state.toml`, and release-note draft all changed together.
-- [ ] Local validator passes (`exit 0`).
-- [ ] `co lint --rule version-state` passes.
-- [ ] CI `QG-0: version-drift` is green.
-- [ ] No `--no-verify` / `--skip-checks` bypass was used.
-- [ ] If drift was detected and corrected, an entry was added or updated in `project/known-issues.md`.
-
-This checklist is intentionally IDE-agnostic: AI agents reach it via `start-here.md → AGENTS.md → versioning.md` regardless of editor or chat-memory state.
-
----
-
-## Release Ownership
-
-List the project-local scripts or commands that own release execution.
-
-Example structure:
-
-- track: `primary`
-  - version sync: `[script or command]`
-  - build/package: `[script or command]`
-  - deploy/publish: `[script or command]`
-
-The generic protocol layer should orchestrate these scripts, not replace them.
+Formal release MUST NOT be cut until `co release-docs check --track vscode` passes (or `--allow-draft` only for WIP notes).
 
 ---
 
 ## Workflow Summary
 
-Each track should normally move through these states:
+Each track normally moves:
 
 1. `planning`
 2. `developing`
@@ -213,61 +136,25 @@ Each track should normally move through these states:
 4. `released`
 5. `hotfix` (when needed)
 
-Detailed release execution steps live in:
+Helper commands (when using cokodo CLI):
 
-- `project/sop/release.md`
+- `co start-next-version --track vscode --version <x.y.z>`
+- `co prepare-release --track vscode`
+- `co cut-release --track vscode`
 
-If the protocol provides helper commands, use them for explicit state transitions. For example:
-
-- `co start-next-version --track <name> --version <x.y.z>`
-- `co prepare-release --track <name>`
-- `co cut-release --track <name>`
-
----
-
-## Automation Integration
-
-Recommended automation split:
-
-1. **Iteration open**
-   - run `co start-next-version --track <name> --version <x.y.z> --apply`
-   - then open or update the release-note draft for that track
-2. **Pre-release freeze**
-   - run project-local test/build checks
-   - run `co prepare-release --track <name> --apply`
-3. **Release cut**
-   - update the canonical version source
-   - run project-local derived sync, packaging, deployment, and tag creation
-   - run `co cut-release --track <name> --apply`
-
-Recommended CI/CD usage:
-
-- PR / branch gate: run `co lint --rule version-state`
-- release candidate gate: run project-local version sync/build validation before `co prepare-release`
-- release job: finish project-local release flow first, then run `co cut-release`
-
-Keep the project-specific shell commands in:
-
-- `project/commands.md`
-- `project/deploy.md`
-
-The helper commands record governance state. They should not replace the project's own sync/build/deploy scripts.
+These update governance state; they do not replace `build:vscode` / AuthNexus upload.
 
 ---
 
 ## Operator Checklist
 
-When releasing a track:
+When releasing the `vscode` track:
 
-1. Confirm the track and working version from `project/version-state.toml`
-2. Update the canonical version source only
-3. Sync derived files
-4. Finalize the release note
-5. Run the track-specific build/package/deploy flow
-6. Create the release tag
-7. Record the rollback baseline
-8. Refresh `project/status.md`
-
----
-
-*Template seeded by `co init` / `co scaffold`; safe to customize for your team.*
+1. Confirm track and working version from `version-state.toml`
+2. Update canonical `apps/vscode/package.json` only
+3. Finalize `docs/operations/vscode-release-note-<ver>.md`
+4. Run `node scripts/verify-versions.mjs` and `co lint --rule version-state`
+5. Run `bun run build:vscode`
+6. Publish / install VSIX as required
+7. Create annotated tag `vscode/vX.Y.Z`
+8. Refresh `project/status.md` Version Cycle + Quick Reference
