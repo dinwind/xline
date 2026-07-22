@@ -93,6 +93,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	const webview = (await initialize(storageContext)) as VscodeWebviewProvider
 	timer.mark("initialize")
 
+	void webview.controller.syncCokodoWorkspaceFromWorkspaceRoot()
+
 	const updateChecker = startAxlineUpdateChecker()
 	if (updateChecker) {
 		context.subscriptions.push(updateChecker)

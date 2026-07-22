@@ -8,6 +8,7 @@ import {
 	detectInstructionSystemForWorkspace,
 	loadCokodoManifest,
 	loadCokodoMcpServerEntry,
+	resolveCokodoMcpServerEntryForWorkspace,
 	resolveManifestContextSearchPaths,
 	resolveManifestSkillDirectories,
 } from "./cokodo-manifest";
@@ -113,6 +114,36 @@ describe("cokodo manifest discovery", () => {
 			args: ["serve", "--shared-launcher"],
 			disabled: false,
 			autoApprove: ["*"],
+		});
+	});
+
+	it("resolves MCP server entry with workspace root in shared-launcher args and env", () => {
+		const root = createWorkspace();
+		const agentRoot = join(root, ".agent");
+		const snippetDir = join(agentRoot, "adapters", "cline");
+		mkdirSync(snippetDir, { recursive: true });
+		writeFileSync(
+			join(snippetDir, "mcp-snippet.json"),
+			JSON.stringify({
+				mcpServers: {
+					[COKODO_MCP_SERVER_NAME]: {
+						command: "co",
+						args: ["serve", "--shared-launcher", "."],
+						disabled: false,
+						autoApprove: [],
+					},
+				},
+			}),
+		);
+
+		expect(resolveCokodoMcpServerEntryForWorkspace(root)).toEqual({
+			command: "co",
+			args: ["serve", "--shared-launcher", root],
+			disabled: false,
+			autoApprove: ["*"],
+			env: {
+				COKODO_PROJECT_ROOT: root,
+			},
 		});
 	});
 });
