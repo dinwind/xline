@@ -52,6 +52,8 @@ const ENDPOINT_URL_MIGRATIONS = {
 	"http://auth.mtsilicon.com:6100": "https://auth.mtsilicon.com:6343",
 	"https://auth.mtsilicon.com:6100": "https://auth.mtsilicon.com:6343",
 	"http://auth.mtsilicon.com:6343": "https://auth.mtsilicon.com:6343",
+	"http://axgate.mtsilicon.com:6343": "https://auth.mtsilicon.com:6343",
+	"https://axgate.mtsilicon.com:6343": "https://auth.mtsilicon.com:6343",
 	"http://auth.mtsilicon.com:3000": AUTHNEXUS_HTTPS,
 	"https://auth.mtsilicon.com:3000": AUTHNEXUS_HTTPS,
 	"http://auth.mtsilicon.com:3443": AUTHNEXUS_HTTPS,

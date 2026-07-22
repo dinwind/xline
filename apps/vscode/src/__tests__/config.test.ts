@@ -844,6 +844,25 @@ describe("ClineEndpoint configuration", () => {
 			onDisk.authNexusBaseUrl.should.equal("https://auth.mtsilicon.com")
 		})
 
+		it("should rewrite retired axgate.mtsilicon.com AxGate hostname to auth.mtsilicon.com:6343", async () => {
+			await fs.mkdir(path.join(tempDir, ".axline"), { recursive: true })
+			await fs.writeFile(
+				path.join(tempDir, ".axline", "endpoints.json"),
+				JSON.stringify({
+					axgateBaseUrl: "https://axgate.mtsilicon.com:6343",
+					authNexusBaseUrl: "https://auth.mtsilicon.com",
+				}),
+				"utf8",
+			)
+
+			await ClineEndpoint.initialize(tempDir)
+
+			const extension = ClineEndpoint.getEndpointsExtension()
+			extension?.axgateBaseUrl?.should.equal("https://auth.mtsilicon.com:6343")
+			const onDisk = JSON.parse(await fs.readFile(path.join(tempDir, ".axline", "endpoints.json"), "utf8"))
+			onDisk.axgateBaseUrl.should.equal("https://auth.mtsilicon.com:6343")
+		})
+
 		it("should rewrite retired AuthNexus :3443 to standard HTTPS :443", async () => {
 			await fs.mkdir(path.join(tempDir, ".axline"), { recursive: true })
 			await fs.writeFile(

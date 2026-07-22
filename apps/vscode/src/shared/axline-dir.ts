@@ -27,6 +27,9 @@ export const AXLINE_ENDPOINT_URL_MIGRATIONS: Readonly<Record<string, string>> = 
 	"http://auth.mtsilicon.com:6100": DEFAULT_AXLINE_ENDPOINTS.axgateBaseUrl,
 	"https://auth.mtsilicon.com:6100": DEFAULT_AXLINE_ENDPOINTS.axgateBaseUrl,
 	"http://auth.mtsilicon.com:6343": DEFAULT_AXLINE_ENDPOINTS.axgateBaseUrl,
+	/** Retired AxGate hostname — TLS cert is issued for auth.mtsilicon.com only. */
+	"http://axgate.mtsilicon.com:6343": DEFAULT_AXLINE_ENDPOINTS.axgateBaseUrl,
+	"https://axgate.mtsilicon.com:6343": DEFAULT_AXLINE_ENDPOINTS.axgateBaseUrl,
 	"http://auth.mtsilicon.com:3000": DEFAULT_AXLINE_ENDPOINTS.authNexusBaseUrl,
 	"https://auth.mtsilicon.com:3000": DEFAULT_AXLINE_ENDPOINTS.authNexusBaseUrl,
 	"http://auth.mtsilicon.com:3443": DEFAULT_AXLINE_ENDPOINTS.authNexusBaseUrl,
