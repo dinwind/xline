@@ -1,0 +1,16 @@
+{
+  "servers": {
+    "cokodo": {
+      "type": "stdio",
+      "command": "co",
+      "args": [
+        "serve",
+        "--shared-launcher",
+        "${workspaceFolder}"
+      ],
+      "env": {
+        "COKODO_PROJECT_ROOT": "${workspaceFolder}"
+      }
+    }
+  }
+}

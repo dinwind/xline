@@ -1,0 +1,28 @@
+---
+description: PowerShell-compatible git commit syntax (Windows)
+alwaysApply: true
+---
+
+# Git Commit on Windows (PowerShell)
+
+See `.agent/core/conventions.md` Section 3.4 for the full rationale.
+
+Two constraints on Windows / PowerShell:
+1. `<<'EOF'` heredoc syntax is **not supported**.
+2. Tools that auto-inject `--trailer` flags can break `$var`-based `-m` messages.
+
+## Use `-F` with a temp file (recommended for all multi-line messages)
+
+```powershell
+"feat: subject`n`nBody line 1`nBody line 2" | Out-File -Encoding utf8 .git/COMMIT_MSG_TMP
+git commit -F .git/COMMIT_MSG_TMP
+Remove-Item .git/COMMIT_MSG_TMP
+```
+
+## Single-line messages (no double quotes)
+
+```powershell
+git commit -m 'chore: simple message'
+```
+
+**Never use `<<'EOF'` heredoc — it always fails in PowerShell.**
