@@ -11,7 +11,7 @@ interface GeneralSettingsSectionProps {
 
 const INSTRUCTION_SYSTEM_OPTIONS = [
 	{ value: "cokodo", label: "Cokodo Agent (.agent/)" },
-	{ value: "cline", label: "Cline (.clinerules / .cline)" },
+	{ value: "cline", label: "Axline (.clinerules / .cline)" },
 	{ value: "both", label: "Both (Cokodo first)" },
 ] as const
 
@@ -40,8 +40,8 @@ const GeneralSettingsSection = ({ renderSectionHeader }: GeneralSettingsSectionP
 					</VSCodeDropdown>
 					<p className="text-sm mt-2 mb-0 text-description">
 						Choose where Axline loads rules, workflows, and skills. Cokodo uses the project <code>.agent/</code>{" "}
-						protocol. Cline uses legacy <code>.clinerules</code> and <code>.cline</code> paths. Both merges them with
-						Cokodo taking priority.
+						protocol. The Axline option uses legacy <code>.clinerules</code> and <code>.cline</code> paths. Both
+						merges them with Cokodo taking priority.
 					</p>
 				</div>
 
@@ -69,7 +69,7 @@ const GeneralSettingsSection = ({ renderSectionHeader }: GeneralSettingsSectionP
 					</Tooltip>
 
 					<p className="text-sm mt-[5px] text-description">
-						Help improve Cline by sending usage data and error reports. No code, prompts, or personal information are
+						Help improve Axline by sending usage data and error reports. No code, prompts, or personal information are
 						ever sent. See our{" "}
 						<VSCodeLink
 							className="text-inherit"

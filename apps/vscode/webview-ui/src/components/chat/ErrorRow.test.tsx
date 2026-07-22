@@ -85,7 +85,7 @@ describe("ErrorRow", () => {
 		const clineignoreMessage = { ...mockMessage, text: "/path/to/file.txt" }
 		render(<ErrorRow errorType="clineignore_error" message={clineignoreMessage} />)
 
-		expect(screen.getByText(/Cline tried to access/)).toBeInTheDocument()
+		expect(screen.getByText(/Axline tried to access/)).toBeInTheDocument()
 		expect(screen.getByText("/path/to/file.txt")).toBeInTheDocument()
 	})
 
@@ -114,7 +114,7 @@ describe("ErrorRow", () => {
 			expect(screen.getByText("You have run out of credits.")).toBeInTheDocument()
 		})
 
-		it("does not show Cline credits CTA for non-Cline balance errors without a provider URL", async () => {
+		it("does not show Axline credits CTA for non-Axline balance errors without a provider URL", async () => {
 			const mockClineError = {
 				message: "Not enough credits available",
 				providerId: "zai",
@@ -273,7 +273,7 @@ describe("ErrorRow", () => {
 
 			expect(screen.queryByText("Authentication failed")).not.toBeInTheDocument()
 			expect(screen.getByText(/Whoops looks like you're logged out/)).toBeInTheDocument()
-			expect(screen.getByText("Sign in to Cline")).toBeInTheDocument()
+			expect(screen.getByText("Sign in to Axline")).toBeInTheDocument()
 		})
 
 		it("renders PowerShell troubleshooting link when error mentions PowerShell", async () => {
@@ -323,7 +323,7 @@ describe("ErrorRow", () => {
 
 			render(<ErrorRow apiRequestFailedMessage="Some API error" errorType="error" message={mockMessage} />)
 
-			// When ClineError.parse returns null, we display the raw error message for non-Cline providers
+			// When ClineError.parse returns null, we display the raw error message for non-Axline providers
 			// Since clineError is undefined, isClineProvider is false, so we show the raw apiRequestFailedMessage
 			expect(screen.getByText("Some API error")).toBeInTheDocument()
 		})

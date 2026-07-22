@@ -238,7 +238,7 @@ export class Controller {
 		// IMPORTANT: Use ~/.cline/data/settings/ for the settings directory,
 		// NOT ensureSettingsDirectoryExists() which returns the VSCode extension
 		// storage path (HostProvider.globalStorageFsPath/settings/). The MCP
-		// settings file lives at ~/.cline/data/settings/cline_mcp_settings.json
+		// settings file lives at ~/.axline/data/settings/axline_mcp_settings.json
 		// (shared across VSCode, CLI, and JetBrains clients).
 		this.mcpHub = new McpHub(
 			() => ensureMcpServersDirectoryExists(),
@@ -944,7 +944,7 @@ export class Controller {
 	/**
 	 * Emit a proper auth error for the 'cline' provider when the user is not
 	 * logged in. The message sequence drives ErrorRow to render the
-	 * "Sign in to Cline" button.
+	 * "Sign in to Axline" button.
 	 *
 	 * Message sequence:
 	 *   1. say:'task'           – the user's message text

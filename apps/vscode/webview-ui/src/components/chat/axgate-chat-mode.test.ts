@@ -8,6 +8,7 @@ describe("axgate-chat-mode", () => {
 
 	it("derives auto when act uses axgate auto model", () => {
 		expect(deriveAxgateChatMode("act", "axgate", "auto")).toBe("auto")
+		expect(deriveAxgateChatMode("act", "axgate", "ax_auto")).toBe("auto")
 	})
 
 	it("derives agent for act with concrete model", () => {

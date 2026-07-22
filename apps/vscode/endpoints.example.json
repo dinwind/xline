@@ -1,0 +1,8 @@
+{
+	"_comment": "AxGate and AuthNexus require HTTPS. Plain HTTP is rejected except localhost.",
+	"_comment_feedback": "Feedback Hub reuses authNexusBaseUrl (same single source as private update). Do not add a second feedback base URL. Business appId is fixed to 'axline'. Optional: AXLINE_FEEDBACK_MOCK=1 for UI-only mock.",
+	"axgateBaseUrl": "https://auth.mtsilicon.com:6343",
+	"authAppId": "app_uu1Sn7yC",
+	"authNexusBaseUrl": "https://auth.mtsilicon.com",
+	"updateAppId": "app_<AuthNexus软件应用ID>"
+}

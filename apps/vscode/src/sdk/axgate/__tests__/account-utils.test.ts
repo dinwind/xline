@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest"
 import {
+	extractProvidersFromResponse,
 	filterEnabledProviders,
 	filterQuotaUsageForSubject,
+	groupModelsByProvider,
 	hasQuotaUsageEntries,
 	mapProviderSummary,
+	parseProviderNameFromModelId,
 	toIdeProjectId,
 } from "../account-utils"
 
@@ -49,10 +52,46 @@ describe("hasQuotaUsageEntries", () => {
 })
 
 describe("mapProviderSummary", () => {
-	it("treats enabled as true only when explicitly set", () => {
+	it("treats enabled as true unless explicitly false", () => {
 		expect(mapProviderSummary({ name: "deepseek", enabled: true }).enabled).toBe(true)
 		expect(mapProviderSummary({ name: "deepseek", enabled: false }).enabled).toBe(false)
-		expect(mapProviderSummary({ name: "deepseek" }).enabled).toBe(false)
+		expect(mapProviderSummary({ name: "deepseek" }).enabled).toBe(true)
+	})
+})
+
+describe("extractProvidersFromResponse", () => {
+	it("reads providers from AxGate list envelope", () => {
+		expect(
+			extractProvidersFromResponse({
+				data: [{ name: "aliyun", enabled: true }],
+			}),
+		).toEqual([{ name: "aliyun", enabled: true }])
+	})
+
+	it("reads providers from account summary payload", () => {
+		expect(extractProvidersFromResponse([{ name: "aliyun", enabled: true }])).toEqual([{ name: "aliyun", enabled: true }])
+	})
+})
+
+describe("parseProviderNameFromModelId", () => {
+	it("maps ax provider model ids to provider names", () => {
+		expect(parseProviderNameFromModelId("ax_aliyun_deepseek-v4-flash", ["aliyun"])).toBe("aliyun")
+		expect(parseProviderNameFromModelId("ax_auto", ["aliyun"])).toBeNull()
+	})
+})
+
+describe("groupModelsByProvider", () => {
+	it("nests permitted models under providers", () => {
+		const providers = [{ name: "aliyun", enabled: true }]
+		const grouped = groupModelsByProvider(["ax_auto", "ax_aliyun_deepseek-v4-flash", "ax_aliyun_glm-5.2"], providers)
+
+		expect(grouped.providers).toEqual([
+			{
+				provider: providers[0],
+				models: ["ax_aliyun_deepseek-v4-flash", "ax_aliyun_glm-5.2"],
+			},
+		])
+		expect(grouped.unassignedModels).toEqual(["ax_auto"])
 	})
 })
 

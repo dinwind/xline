@@ -9,11 +9,16 @@
 // The factory does NOT handle UI concerns — that's the SdkController's job.
 
 import {
+	AXGATE_CLIENT_NAME,
+	AXGATE_HEADER_AGENT_MODE,
+	buildAxgateClientHeaders,
 	type ClineCoreStartInput,
 	type CoreSessionConfig,
+	formatAxgateApiKey,
 	getProviderAuthHandler,
 	type ProviderSettings,
 	readCompactionStrategyGlobally,
+	resolveAxgateAgentMode,
 	resolveProviderApiKeyFromSettings,
 	type StartSessionResult,
 } from "@cline/core"
@@ -29,6 +34,8 @@ import { stringifyVsCodeLmModelSelector } from "@shared/vsCodeSelectorUtils"
 import { StateManager } from "@/core/storage/StateManager"
 import { ExtensionRegistryInfo } from "@/registry"
 import { getFeatureFlagsService } from "@/services/feature-flags"
+import { readAxgateDeviceToken } from "@/services/identity/device-token"
+import { getInstallationId } from "@/services/identity/installation-id"
 import { getDistinctId } from "@/services/logging/distinctId"
 import { fetch } from "@/shared/net"
 import { FeatureFlag } from "@/shared/services/feature-flags/feature-flags"
@@ -406,7 +413,7 @@ export function resolveModelId(providerId: string, mode: Mode, config: ApiConfig
 	// If the provider has a dedicated field, do not fall back to generic
 	// *ModeApiModelId. Those generic slots may contain a stale model from a
 	// previous provider (for example openai/gpt-5.4), which would make the SDK
-	// session use a different model than the Cline provider UI shows.
+	// session use a different model than the Axline provider UI shows.
 	const modelFields = PROVIDER_MODEL_ID_MAP[providerId]
 	if (modelFields) {
 		const field = mode === "plan" ? modelFields.plan : modelFields.act
@@ -607,6 +614,9 @@ export async function buildSessionConfig(input: SessionConfigInput): Promise<Cor
 		apiKey = resolveApiKey(providerId, apiConfig)
 	}
 	apiKey = apiKey ?? ""
+	if (providerId === "axgate" && apiKey) {
+		apiKey = formatAxgateApiKey(apiKey)
+	}
 	const maxTokensPerTurn = providerId === "openai" ? resolveOpenAiCompatibleMaxTokens(apiConfig, mode) : undefined
 	const reasoningConfig =
 		providerId === "oca"
@@ -631,7 +641,7 @@ export async function buildSessionConfig(input: SessionConfigInput): Promise<Cor
 		Logger.log(`[SessionFactory] Built system prompt: ${systemPrompt.length} chars`)
 	} catch (error) {
 		Logger.warn("[SessionFactory] Failed to build system prompt, using minimal fallback:", error)
-		systemPrompt = "You are Cline, a highly skilled software engineer. Help the user with their request."
+		systemPrompt = "You are Axline, a highly skilled software engineer. Help the user with their request."
 	}
 
 	// Inject preferred language instructions when a non-default language is selected.
@@ -665,6 +675,25 @@ export async function buildSessionConfig(input: SessionConfigInput): Promise<Cor
 	// extension's "openai"). Convert before handing the id to core.
 	const sdkProviderId = toSdkProviderId(providerId)
 
+	let axgateHeaders: Record<string, string> | undefined
+	if (providerId === "axgate") {
+		const installationId = getInstallationId()
+		if (installationId) {
+			const deviceToken = await readAxgateDeviceToken()
+			const headers = buildAxgateClientHeaders({
+				clientName: AXGATE_CLIENT_NAME,
+				clientVersion: ExtensionRegistryInfo.version,
+				installationId,
+				...(deviceToken ? { deviceToken } : {}),
+			})
+			axgateHeaders = {}
+			headers.forEach((value, key) => {
+				axgateHeaders![key] = value
+			})
+			axgateHeaders[AXGATE_HEADER_AGENT_MODE] = resolveAxgateAgentMode(mode, modelId)
+		}
+	}
+
 	// Always pass a providerConfig so the proxy/CA-aware fetch reaches the SDK
 	// gateway; without it the agent loop uses bare global fetch and corporate
 	// proxy/self-signed CA setups fail on JetBrains and CLI. Cloud providers
@@ -679,6 +708,7 @@ export async function buildSessionConfig(input: SessionConfigInput): Promise<Cor
 		modelId,
 		...(apiKey ? { apiKey } : {}),
 		...(baseUrl !== undefined ? { baseUrl } : {}),
+		...(axgateHeaders ? { headers: axgateHeaders } : {}),
 		fetch,
 	}
 

@@ -1,3 +1,4 @@
+import { normalizeInstructionSystem } from "@cline/shared/storage"
 import { ensureAgentSkillsDirectoryExists } from "@core/storage/disk"
 import { CreateSkillRequest, SkillsToggles } from "@shared/proto/cline/file"
 import fs from "fs/promises"
@@ -52,11 +53,15 @@ export async function createSkillFile(controller: Controller, request: CreateSki
 		throw new Error("Invalid skill name")
 	}
 
+	const instructionSystem = normalizeInstructionSystem(controller.stateManager.getGlobalSettingsKey("instructionSystem"))
 	let skillDir: string
 
 	if (isGlobal) {
 		// Create in ~/.agents/skills using the unified helper
-		const globalSkillsDir = await ensureAgentSkillsDirectoryExists({ isGlobal: true })
+		const globalSkillsDir = await ensureAgentSkillsDirectoryExists({
+			isGlobal: true,
+			instructionSystem,
+		})
 		skillDir = path.join(globalSkillsDir, sanitizedName)
 	} else {
 		const workspacePaths = await HostProvider.workspace.getWorkspacePaths({})
@@ -64,10 +69,11 @@ export async function createSkillFile(controller: Controller, request: CreateSki
 		if (!primaryWorkspace) {
 			throw new Error("No workspace folder open")
 		}
-		// Create in .agents/skills using the unified helper
+		// Cokodo → .agent/skills/_project; Cline → .agents/skills
 		const localSkillsDir = await ensureAgentSkillsDirectoryExists({
 			isGlobal: false,
 			workspacePath: primaryWorkspace,
+			instructionSystem,
 		})
 		skillDir = path.join(localSkillsDir, sanitizedName)
 	}

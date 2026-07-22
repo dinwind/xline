@@ -3,38 +3,34 @@ import { Logger } from "@/shared/services/Logger"
 import { getProviderSettingsManager } from "../provider-migration"
 import { AxgateAccountService } from "./account-service"
 import { getAxgateConfig } from "./config"
+import { type AxgateModeDefaults, resolveAxgateBootstrapModels } from "./mode-defaults"
 
 const STORAGE_PROVIDER_ID = "axgate"
 const AXGATE_TOKEN_PREFIX = "axgate:"
 const DEFAULT_MODEL_ID = "auto"
-
-function resolveAllowedModelId(currentModel: string | undefined, allowedModels: string[]): string {
-	if (currentModel && allowedModels.includes(currentModel)) {
-		return currentModel
-	}
-	if (allowedModels.includes(DEFAULT_MODEL_ID)) {
-		return DEFAULT_MODEL_ID
-	}
-	return allowedModels[0] ?? DEFAULT_MODEL_ID
-}
 
 function toStoredAccessToken(accessToken: string): string {
 	const token = accessToken.trim()
 	return token.toLowerCase().startsWith(AXGATE_TOKEN_PREFIX) ? token : `${AXGATE_TOKEN_PREFIX}${token}`
 }
 
-async function fetchAllowedModels(accessToken: string): Promise<string[]> {
+async function fetchAccountBootstrap(accessToken: string): Promise<{
+	models: string[]
+	modeDefaults: AxgateModeDefaults
+}> {
 	try {
-		return await AxgateAccountService.getInstance()
-			.fetchAccountSummaryWithToken(accessToken)
-			.then((summary) => summary.models)
+		const summary = await AxgateAccountService.getInstance().fetchAccountSummaryWithToken(accessToken)
+		return {
+			models: summary.models,
+			modeDefaults: summary.modeDefaults,
+		}
 	} catch (error) {
-		Logger.warn(`[AxgateAutoConfig] Failed to fetch allowed models: ${error}`)
-		return []
+		Logger.warn(`[AxgateAutoConfig] Failed to fetch account bootstrap: ${error}`)
+		return { models: [], modeDefaults: {} }
 	}
 }
 
-function syncAxgateApiConfiguration(modelId: string): void {
+function syncAxgateApiConfiguration(actModelId: string, planModelId: string): void {
 	try {
 		const stateManager = StateManager.get()
 		const current = stateManager.getApiConfiguration()
@@ -42,8 +38,8 @@ function syncAxgateApiConfiguration(modelId: string): void {
 			...current,
 			planModeApiProvider: "axgate",
 			actModeApiProvider: "axgate",
-			planModeApiModelId: modelId,
-			actModeApiModelId: modelId,
+			planModeApiModelId: planModelId,
+			actModeApiModelId: actModelId,
 		})
 	} catch (error) {
 		Logger.warn(`[AxgateAutoConfig] Failed to sync API configuration: ${error}`)
@@ -58,11 +54,14 @@ export async function configureAxgateProviderAfterLogin(accessToken: string): Pr
 
 	const manager = getProviderSettingsManager()
 	const existing = manager.getProviderSettings(STORAGE_PROVIDER_ID)
-	const allowedModels = await fetchAllowedModels(accessToken)
-	const modelId =
+	const { models: allowedModels, modeDefaults } = await fetchAccountBootstrap(accessToken)
+	const { actModelId, planModelId } =
 		allowedModels.length > 0
-			? resolveAllowedModelId(existing?.model?.trim(), allowedModels)
-			: existing?.model?.trim() || DEFAULT_MODEL_ID
+			? resolveAxgateBootstrapModels(modeDefaults, allowedModels, existing?.model?.trim())
+			: {
+					actModelId: existing?.model?.trim() || DEFAULT_MODEL_ID,
+					planModelId: existing?.model?.trim() || DEFAULT_MODEL_ID,
+				}
 	const storedAccessToken = toStoredAccessToken(accessToken)
 
 	manager.saveProviderSettings(
@@ -70,7 +69,7 @@ export async function configureAxgateProviderAfterLogin(accessToken: string): Pr
 			...(existing ?? { provider: STORAGE_PROVIDER_ID }),
 			provider: STORAGE_PROVIDER_ID,
 			baseUrl: `${config.baseUrl}/v1`,
-			model: modelId,
+			model: actModelId,
 			auth: {
 				...(existing?.auth ?? {}),
 				accessToken: storedAccessToken,
@@ -82,7 +81,7 @@ export async function configureAxgateProviderAfterLogin(accessToken: string): Pr
 		{ tokenSource: "oauth", setLastUsed: true },
 	)
 
-	syncAxgateApiConfiguration(modelId)
+	syncAxgateApiConfiguration(actModelId, planModelId)
 }
 
 export async function reconcileAxgateModelSelection(accessToken?: string): Promise<void> {
@@ -103,13 +102,17 @@ export async function reconcileAxgateModelSelection(accessToken?: string): Promi
 		return
 	}
 
-	const allowedModels = await fetchAllowedModels(token)
+	const { models: allowedModels, modeDefaults } = await fetchAccountBootstrap(token)
 	if (allowedModels.length === 0) {
 		return
 	}
 
-	const modelId = resolveAllowedModelId(existing.model?.trim(), allowedModels)
-	if (modelId === existing.model?.trim()) {
+	const { actModelId, planModelId } = resolveAxgateBootstrapModels(modeDefaults, allowedModels, existing.model?.trim())
+	const apiConfig = StateManager.get().getApiConfiguration()
+	const currentActModelId = apiConfig.actModeApiModelId
+	const currentPlanModelId = apiConfig.planModeApiModelId
+
+	if (actModelId === existing.model?.trim() && actModelId === currentActModelId && planModelId === currentPlanModelId) {
 		return
 	}
 
@@ -117,9 +120,9 @@ export async function reconcileAxgateModelSelection(accessToken?: string): Promi
 		{
 			...existing,
 			provider: STORAGE_PROVIDER_ID,
-			model: modelId,
+			model: actModelId,
 		},
 		{ tokenSource: "oauth", setLastUsed: false },
 	)
-	syncAxgateApiConfiguration(modelId)
+	syncAxgateApiConfiguration(actModelId, planModelId)
 }

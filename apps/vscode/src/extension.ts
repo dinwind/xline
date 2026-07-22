@@ -5,6 +5,7 @@ import assert from "node:assert"
 import { DIFF_VIEW_URI_SCHEME } from "@hosts/vscode/VscodeDiffViewProvider"
 import * as vscode from "vscode"
 import { Logger } from "@/shared/services/Logger"
+import { sendFeedbackOpenedEvent } from "./core/controller/feedback/subscribeToFeedbackOpened"
 import { sendAccountButtonClickedEvent } from "./core/controller/ui/subscribeToAccountButtonClicked"
 import { sendChatButtonClickedEvent } from "./core/controller/ui/subscribeToChatButtonClicked"
 import { sendHistoryButtonClickedEvent } from "./core/controller/ui/subscribeToHistoryButtonClicked"
@@ -21,7 +22,7 @@ import { HostProvider } from "@/hosts/host-provider"
 import { vscodeHostBridgeClient } from "@/hosts/vscode/hostbridge/client/host-grpc-client"
 import { createStorageContext } from "@/shared/storage/storage-context"
 import { readTextFromClipboard, writeTextToClipboard } from "@/utils/env"
-import { initialize, tearDown } from "./common"
+import { initialize, tearDown, wireExtensionLogger } from "./common"
 import { addToCline } from "./core/controller/commands/addToCline"
 import { explainWithCline } from "./core/controller/commands/explainWithCline"
 import { fixWithCline } from "./core/controller/commands/fixWithCline"
@@ -32,6 +33,8 @@ import { HookDiscoveryCache } from "./core/hooks/HookDiscoveryCache"
 import {
 	cleanupMcpMarketplaceCatalogFromGlobalState,
 	cleanupOldApiKey,
+	hasCompletedLegacyVscodeCleanup,
+	markLegacyVscodeCleanupDone,
 	migrateCustomInstructionsToGlobalRules,
 	migrateTaskHistoryToFile,
 	migrateWelcomeViewCompleted,
@@ -52,9 +55,11 @@ import { exportVSCodeStorageToSharedFiles } from "./hosts/vscode/vscode-to-file-
 import { ExtensionRegistryInfo } from "./registry"
 import { AuthService, LogoutReason } from "./sdk/auth-service"
 import { telemetryService } from "./services/telemetry"
+import { runManualAxlineUpdateCheck, startAxlineUpdateChecker } from "./services/update/axline-update-service"
 import { LG_TASK_URI_PATH, SharedUriHandler, TASK_URI_PATH } from "./services/uri/SharedUriHandler"
 import { ShowMessageType } from "./shared/proto/host/window"
 import { fileExistsAtPath } from "./utils/fs"
+import { StartupTimer } from "./utils/startup-timer"
 
 // This method is called when the VS Code extension is activated.
 // NOTE: This is VS Code specific - services that should be registered
@@ -65,21 +70,34 @@ export async function activate(context: vscode.ExtensionContext) {
 	// 1. Set up HostProvider for VSCode
 	// IMPORTANT: This must be done before any service can be registered
 	setupHostProvider(context)
+	// Wire Logger early so pre-initialize startup marks reach Output: Axline
+	wireExtensionLogger()
+	const timer = new StartupTimer("activate", activationStartTime)
+	timer.mark("setupHostProvider")
 
 	// 2. Clean up legacy data patterns within VSCode's native storage.
 	// Moves workspace→global keys, task history→file, custom instructions→rules, etc.
 	// Must run BEFORE the file export so we copy clean state.
 	await cleanupLegacyVSCodeStorage(context)
+	timer.mark("cleanupLegacyStorage")
 
 	// 3. One-time export of VSCode's native storage to shared file-backed stores.
 	// After this, all platforms (VSCode, CLI, JetBrains) read from ~/.cline/data/.
 	const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
 	const storageContext = createStorageContext({ workspacePath })
 	await exportVSCodeStorageToSharedFiles(context, storageContext)
+	timer.mark("exportStorageToFiles")
 
 	// 4. Register services and perform common initialization
 	// IMPORTANT: Must be done after host provider is setup and migrations are complete
 	const webview = (await initialize(storageContext)) as VscodeWebviewProvider
+	timer.mark("initialize")
+
+	const updateChecker = startAxlineUpdateChecker()
+	if (updateChecker) {
+		context.subscriptions.push(updateChecker)
+	}
+	timer.mark("updateChecker")
 
 	// 5. Register services and commands specific to VS Code
 	// Initialize hook discovery cache for performance optimization
@@ -144,6 +162,19 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand(commands.HistoryButton, () => sendHistoryButtonClickedEvent()))
 	context.subscriptions.push(vscode.commands.registerCommand(commands.AccountButton, () => sendAccountButtonClickedEvent()))
 	context.subscriptions.push(vscode.commands.registerCommand(commands.WorktreesButton, () => sendWorktreesButtonClickedEvent()))
+	context.subscriptions.push(vscode.commands.registerCommand(commands.CheckForUpdate, () => runManualAxlineUpdateCheck()))
+	context.subscriptions.push(
+		vscode.commands.registerCommand(commands.OpenFeedback, async () => {
+			await vscode.commands.executeCommand(`${ExtensionRegistryInfo.views.Sidebar}.focus`)
+			await sendFeedbackOpenedEvent("list")
+		}),
+	)
+	context.subscriptions.push(
+		vscode.commands.registerCommand(commands.ReportIssue, async () => {
+			await vscode.commands.executeCommand(`${ExtensionRegistryInfo.views.Sidebar}.focus`)
+			await sendFeedbackOpenedEvent("new")
+		}),
+	)
 
 	/*
 	We use the text document content provider API to show the left side for diff view by creating a
@@ -205,10 +236,10 @@ export async function activate(context: vscode.ExtensionContext) {
 			.then((module) => {
 				const devTaskCommands = module.registerTaskCommands(webview.controller)
 				context.subscriptions.push(...devTaskCommands)
-				Logger.log("[Cline Dev] Dev mode activated & dev commands registered")
+				Logger.log("[Axline Dev] Dev mode activated & dev commands registered")
 			})
 			.catch((error) => {
-				Logger.log(`[Cline Dev] Failed to register dev commands: ${error}`)
+				Logger.log(`[Axline Dev] Failed to register dev commands: ${error}`)
 			})
 	}
 
@@ -301,40 +332,40 @@ export async function activate(context: vscode.ExtensionContext) {
 						)
 					}
 
-					// Add to Cline (Always available)
-					const addAction = new vscode.CodeAction("Add to Cline", vscode.CodeActionKind.QuickFix)
+					// Add to Axline (Always available)
+					const addAction = new vscode.CodeAction("Add to Axline", vscode.CodeActionKind.QuickFix)
 					addAction.command = {
 						command: commands.AddToChat,
-						title: "Add to Cline",
+						title: "Add to Axline",
 						arguments: [expandedRange, context.diagnostics],
 					}
 					actions.push(addAction)
 
-					// Explain with Cline (Always available)
-					const explainAction = new vscode.CodeAction("Explain with Cline", vscode.CodeActionKind.RefactorExtract) // Using a refactor kind
+					// Explain with Axline (Always available)
+					const explainAction = new vscode.CodeAction("Explain with Axline", vscode.CodeActionKind.RefactorExtract) // Using a refactor kind
 					explainAction.command = {
 						command: commands.ExplainCode,
-						title: "Explain with Cline",
+						title: "Explain with Axline",
 						arguments: [expandedRange],
 					}
 					actions.push(explainAction)
 
-					// Improve with Cline (Always available)
-					const improveAction = new vscode.CodeAction("Improve with Cline", vscode.CodeActionKind.RefactorRewrite) // Using a refactor kind
+					// Improve with Axline (Always available)
+					const improveAction = new vscode.CodeAction("Improve with Axline", vscode.CodeActionKind.RefactorRewrite) // Using a refactor kind
 					improveAction.command = {
 						command: commands.ImproveCode,
-						title: "Improve with Cline",
+						title: "Improve with Axline",
 						arguments: [expandedRange],
 					}
 					actions.push(improveAction)
 
-					// Fix with Cline (Only if diagnostics exist)
+					// Fix with Axline (Only if diagnostics exist)
 					if (context.diagnostics.length > 0) {
-						const fixAction = new vscode.CodeAction("Fix with Cline", vscode.CodeActionKind.QuickFix)
+						const fixAction = new vscode.CodeAction("Fix with Axline", vscode.CodeActionKind.QuickFix)
 						fixAction.isPreferred = true
 						fixAction.command = {
 							command: commands.FixWithCline,
-							title: "Fix with Cline",
+							title: "Fix with Axline",
 							arguments: [expandedRange, context.diagnostics],
 						}
 						actions.push(fixAction)
@@ -552,8 +583,8 @@ ${ctx.cellJson || "{}"}
 		}
 	})
 	context.subscriptions.push({ dispose: unsubSecrets })
-
-	Logger.log(`[Cline] extension activated in ${performance.now() - activationStartTime} ms`)
+	timer.mark("registerCommandsAndProviders")
+	timer.finish()
 
 	return createClineAPI(webview.controller)
 }
@@ -606,7 +637,7 @@ async function showJupyterPromptInput(title: string, placeholder: string): Promi
 
 function setupHostProvider(context: ExtensionContext) {
 	const outputChannel = registerClineOutputChannel(context)
-	outputChannel.appendLine("[Cline] Setting up VS Code host...")
+	outputChannel.appendLine("[Axline] Setting up VS Code host...")
 
 	const createWebview = () => new VscodeWebviewProvider(context)
 	const createDiffView = () => new VscodeDiffViewProvider()
@@ -664,7 +695,7 @@ async function openClineSidebarForTaskUri(): Promise<void> {
 		await new Promise((resolve) => setTimeout(resolve, sidebarWaitIntervalMs))
 	}
 
-	Logger.warn("Task URI handling timed out waiting for Cline sidebar visibility")
+	Logger.warn("Task URI handling timed out waiting for Axline sidebar visibility")
 }
 
 async function getBinaryLocation(name: string): Promise<string> {
@@ -735,14 +766,13 @@ if (IS_DEV) {
 // VSCode-specific storage migrations
 async function cleanupLegacyVSCodeStorage(context: ExtensionContext): Promise<void> {
 	try {
-		await cleanupOldApiKey(context)
-		// Migrate is not done if the new storage does not have the lastShownAnnouncementId flag
-		const hasMigrated = context.globalState.get("lastShownAnnouncementId")
-		if (hasMigrated !== undefined) {
+		if (hasCompletedLegacyVscodeCleanup(context)) {
 			return
 		}
 
 		Logger.info("[VS Code Storage Migrations] Starting")
+
+		await cleanupOldApiKey(context)
 
 		// Migrate custom instructions to global Cline rules (one-time cleanup)
 		await migrateCustomInstructionsToGlobalRules(context)
@@ -759,8 +789,7 @@ async function cleanupLegacyVSCodeStorage(context: ExtensionContext): Promise<vo
 		// Clean up MCP marketplace catalog from global state (moved to disk cache)
 		await cleanupMcpMarketplaceCatalogFromGlobalState(context)
 
-		// lastShownAnnouncementId will be set when announcement is shown
-		// after activation so we don't need to set it here.
+		await markLegacyVscodeCleanupDone(context)
 
 		Logger.info("[VS Code Storage Migrations] Completed")
 	} catch (error) {

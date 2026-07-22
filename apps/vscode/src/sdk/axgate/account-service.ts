@@ -1,18 +1,28 @@
-import { fetchAxgateSession, stripAxgateTokenPrefix } from "@cline/core"
+import { parseAxgateErrorResponse, stripAxgateTokenPrefix } from "@cline/core"
+import { ExtensionRegistryInfo } from "@/registry"
+import { getInstallationId } from "@/services/identity/installation-id"
 import { AuthService } from "../auth-service"
 import {
 	type AxgateProviderSummary,
-	filterEnabledProviders,
+	extractProvidersFromResponse,
 	filterQuotaUsageForSubject,
 	mapProviderSummary,
 } from "./account-utils"
-import { getAxgateConfig, toAxgateAuthConfig } from "./config"
+import { buildAxgateRequestHeaders } from "./client-identity"
+import { getAxgateConfig } from "./config"
+import { type AxgateDeviceStatusSnapshot, fetchAxgateDeviceStatus } from "./device-service"
+import type { AxgateModeDefaults } from "./mode-defaults"
 
 export type { AxgateProviderSummary } from "./account-utils"
+export type { AxgateModeDefaults } from "./mode-defaults"
 
-export type AxgateConsoleSummary = {
+type AxgateAccountSummaryResponse = {
 	health?: { status?: string }
+	models?: string[]
+	mode_defaults?: Partial<Record<"auto" | "plan" | "act", string>>
+	providers?: Array<{ name: string; model?: string; enabled?: boolean }>
 	quota?: { limit_per_project?: number; usage?: Record<string, unknown> }
+	principal?: { subject?: string; roles?: string[] }
 }
 
 export type AxgateAccountSummary = {
@@ -20,29 +30,23 @@ export type AxgateAccountSummary = {
 	roles: string[]
 	providers: AxgateProviderSummary[]
 	models: string[]
+	modeDefaults: AxgateModeDefaults
 	quotaLimit?: number
 	quotaUsageJson?: string
 	healthStatus?: string
+	installationId?: string
+	clientVersion?: string
+	deviceStatus?: string
+	minimumVersion?: string
+	deviceEnforcement?: string
+	versionEnforcement?: string
+	deviceMessage?: string
 }
 
 const DEFAULT_HTTP_TIMEOUT_MS = 30_000
 
-async function parseErrorMessage(response: Response): Promise<string> {
-	try {
-		const body = (await response.json()) as {
-			detail?: string | { message?: string; code?: string }
-			message?: string
-		}
-		if (typeof body.detail === "string") {
-			return body.detail
-		}
-		if (body.detail && typeof body.detail === "object") {
-			return body.detail.message || body.detail.code || response.statusText
-		}
-		return body.message || response.statusText
-	} catch {
-		return response.statusText || "Request failed"
-	}
+async function throwAxgateResponseError(response: Response): Promise<never> {
+	throw await parseAxgateErrorResponse(response)
 }
 
 export class AxgateAccountService {
@@ -63,116 +67,6 @@ export class AxgateAccountService {
 		return stripAxgateTokenPrefix(token)
 	}
 
-	private async authenticatedFetch<T>(path: string): Promise<T> {
-		const config = getAxgateConfig()
-		if (!config) {
-			throw new Error("AxGate is not configured")
-		}
-
-		const token = await this.getBearerToken()
-		const url = `${config.baseUrl}${path}`
-		const response = await fetch(url, {
-			method: "GET",
-			headers: { Authorization: `Bearer ${token}` },
-			signal: AbortSignal.timeout(DEFAULT_HTTP_TIMEOUT_MS),
-		})
-
-		if (!response.ok) {
-			throw new Error(await parseErrorMessage(response))
-		}
-
-		return (await response.json()) as T
-	}
-
-	async fetchConsoleSummary(): Promise<AxgateConsoleSummary> {
-		return this.authenticatedFetch<AxgateConsoleSummary>("/api/console/summary")
-	}
-
-	private async fetchConsoleSummaryWithToken(token: string): Promise<AxgateConsoleSummary> {
-		const config = getAxgateConfig()
-		if (!config) {
-			throw new Error("AxGate is not configured")
-		}
-
-		const url = `${config.baseUrl}/api/console/summary`
-		const response = await fetch(url, {
-			method: "GET",
-			headers: { Authorization: `Bearer ${token}` },
-			signal: AbortSignal.timeout(DEFAULT_HTTP_TIMEOUT_MS),
-		})
-
-		if (!response.ok) {
-			throw new Error(await parseErrorMessage(response))
-		}
-
-		const data = (await response.json()) as AxgateConsoleSummary & {
-			models?: string[]
-			providers?: Array<{ name: string; model?: string; enabled?: boolean }>
-		}
-
-		// Console summary may include gateway-wide models/providers; ignore them here.
-		return {
-			health: data.health,
-			quota: data.quota,
-		}
-	}
-
-	async fetchProviders(): Promise<AxgateProviderSummary[]> {
-		const token = await this.getBearerToken()
-		return this.fetchProvidersWithToken(token)
-	}
-
-	private async fetchProvidersWithToken(token: string): Promise<AxgateProviderSummary[]> {
-		const config = getAxgateConfig()
-		if (!config) {
-			throw new Error("AxGate is not configured")
-		}
-
-		const url = `${config.baseUrl}/api/providers`
-		const response = await fetch(url, {
-			method: "GET",
-			headers: { Authorization: `Bearer ${token}` },
-			signal: AbortSignal.timeout(DEFAULT_HTTP_TIMEOUT_MS),
-		})
-
-		if (!response.ok) {
-			throw new Error(await parseErrorMessage(response))
-		}
-
-		const data = (await response.json()) as
-			| Array<{ name: string; model?: string; enabled?: boolean }>
-			| { providers?: Array<{ name: string; model?: string; enabled?: boolean }> }
-
-		const providers = Array.isArray(data) ? data : (data.providers ?? [])
-		return filterEnabledProviders(providers.map(mapProviderSummary))
-	}
-
-	private async fetchAllowedModelsWithToken(token: string): Promise<string[]> {
-		const config = getAxgateConfig()
-		if (!config) {
-			throw new Error("AxGate is not configured")
-		}
-
-		const url = `${config.baseUrl}/v1/models`
-		const response = await fetch(url, {
-			method: "GET",
-			headers: { Authorization: `Bearer ${token}` },
-			signal: AbortSignal.timeout(DEFAULT_HTTP_TIMEOUT_MS),
-		})
-
-		if (!response.ok) {
-			throw new Error(await parseErrorMessage(response))
-		}
-
-		const data = (await response.json()) as { data?: Array<{ id?: string }> }
-		return (data.data ?? []).map((model) => model.id?.trim()).filter((modelId): modelId is string => Boolean(modelId))
-	}
-
-	async fetchAllowedModels(): Promise<string[]> {
-		const token = await this.getBearerToken()
-		return this.fetchAllowedModelsWithToken(token)
-	}
-
 	async fetchAccountSummary(): Promise<AxgateAccountSummary> {
 		const token = await this.getBearerToken()
 		return this.fetchAccountSummaryWithToken(token)
@@ -184,25 +78,51 @@ export class AxgateAccountService {
 			throw new Error("AxGate is not configured")
 		}
 
-		const [session, summary, providers, models] = await Promise.all([
-			fetchAxgateSession(toAxgateAuthConfig(config), token),
-			this.fetchConsoleSummaryWithToken(token).catch(() => ({}) as AxgateConsoleSummary),
-			this.fetchProvidersWithToken(token).catch(() => [] as AxgateProviderSummary[]),
-			this.fetchAllowedModelsWithToken(token).catch(() => [] as string[]),
+		const url = `${config.baseUrl}/api/account/summary`
+		const headers = await buildAxgateRequestHeaders({ Authorization: `Bearer ${token}` })
+		const [summaryResponse, deviceStatus] = await Promise.all([
+			fetch(url, {
+				method: "GET",
+				headers,
+				signal: AbortSignal.timeout(DEFAULT_HTTP_TIMEOUT_MS),
+			}),
+			fetchAxgateDeviceStatus(token),
 		])
 
-		const principal = session.principal
-		const subject = principal?.subject ?? ""
+		if (!summaryResponse.ok) {
+			await throwAxgateResponseError(summaryResponse)
+		}
+
+		const summary = (await summaryResponse.json()) as AxgateAccountSummaryResponse
+		const subject = summary.principal?.subject ?? ""
 		const filteredQuotaUsage = filterQuotaUsageForSubject(summary.quota?.usage, subject)
+		const providers = extractProvidersFromResponse(summary.providers).map(mapProviderSummary)
 
 		return {
 			subject,
-			roles: principal?.roles ?? [],
+			roles: summary.principal?.roles ?? [],
 			providers,
-			models,
+			models: summary.models ?? [],
+			modeDefaults: summary.mode_defaults ?? {},
 			quotaLimit: summary.quota?.limit_per_project,
 			quotaUsageJson: filteredQuotaUsage !== undefined ? JSON.stringify(filteredQuotaUsage) : undefined,
 			healthStatus: summary.health?.status,
+			installationId: deviceStatus?.installationId ?? getInstallationId() ?? undefined,
+			clientVersion: deviceStatus?.clientVersion ?? ExtensionRegistryInfo.version,
+			deviceStatus: deviceStatus?.deviceStatus,
+			minimumVersion: deviceStatus?.minimumVersion,
+			deviceEnforcement: deviceStatus?.deviceEnforcement,
+			versionEnforcement: deviceStatus?.versionEnforcement,
+			deviceMessage: deviceStatus?.message,
 		}
+	}
+
+	async refreshDeviceStatus(): Promise<AxgateDeviceStatusSnapshot> {
+		const token = await this.getBearerToken()
+		const deviceStatus = await fetchAxgateDeviceStatus(token)
+		if (!deviceStatus) {
+			throw new Error("Unable to refresh AxGate device status")
+		}
+		return deviceStatus
 	}
 }

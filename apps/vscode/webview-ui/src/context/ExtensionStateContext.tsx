@@ -26,7 +26,13 @@ import {
 	applyMessage as reducerApplyMessage,
 	applyStateSnapshot as reducerApplyStateSnapshot,
 } from "../components/chat/chat-view/messageReducer"
-import { McpServiceClient, ModelsServiceClient, StateServiceClient, UiServiceClient } from "../services/grpc-client"
+import {
+	FeedbackServiceClient,
+	McpServiceClient,
+	ModelsServiceClient,
+	StateServiceClient,
+	UiServiceClient,
+} from "../services/grpc-client"
 
 export type ProviderId = string
 
@@ -74,6 +80,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	settingsInitialModelTab?: "recommended" | "free"
 	showHistory: boolean
 	showAccount: boolean
+	showFeedback: boolean
+	feedbackInitialMode: "list" | "new"
 	showWorktrees: boolean
 	showAnnouncement: boolean
 	expandTaskHeader: boolean
@@ -123,6 +131,7 @@ export interface ExtensionStateContextType extends ExtensionState {
 	navigateToSettingsModelPicker: (opts: { targetSection?: string; initialModelTab?: "recommended" | "free" }) => void
 	navigateToHistory: () => void
 	navigateToAccount: () => void
+	navigateToFeedback: (mode?: "list" | "new") => void
 	navigateToWorktrees: () => void
 	navigateToChat: () => void
 
@@ -130,6 +139,7 @@ export interface ExtensionStateContextType extends ExtensionState {
 	hideSettings: () => void
 	hideHistory: () => void
 	hideAccount: () => void
+	hideFeedback: () => void
 	hideWorktrees: () => void
 	hideAnnouncement: () => void
 	closeMarketplaceView: () => void
@@ -153,6 +163,8 @@ export const ExtensionStateContextProvider: React.FC<{
 	const [settingsInitialModelTab, setSettingsInitialModelTab] = useState<"recommended" | "free" | undefined>(undefined)
 	const [showHistory, setShowHistory] = useState(false)
 	const [showAccount, setShowAccount] = useState(false)
+	const [showFeedback, setShowFeedback] = useState(false)
+	const [feedbackInitialMode, setFeedbackInitialMode] = useState<"list" | "new">("list")
 	const [showWorktrees, setShowWorktrees] = useState(false)
 	const [showAnnouncement, setShowAnnouncement] = useState(false)
 
@@ -173,6 +185,10 @@ export const ExtensionStateContextProvider: React.FC<{
 	}, [])
 	const hideHistory = useCallback(() => setShowHistory(false), [setShowHistory])
 	const hideAccount = useCallback(() => setShowAccount(false), [setShowAccount])
+	const hideFeedback = useCallback(() => {
+		setShowFeedback(false)
+		setFeedbackInitialMode("list")
+	}, [])
 	const hideWorktrees = useCallback(() => setShowWorktrees(false), [setShowWorktrees])
 	const hideAnnouncement = useCallback(() => setShowAnnouncement(false), [setShowAnnouncement])
 
@@ -182,6 +198,7 @@ export const ExtensionStateContextProvider: React.FC<{
 			setShowSettings(false)
 			setShowHistory(false)
 			setShowAccount(false)
+			setShowFeedback(false)
 			setShowWorktrees(false)
 			closeMcpView()
 			if (tab) {
@@ -197,6 +214,7 @@ export const ExtensionStateContextProvider: React.FC<{
 		closeMcpView()
 		setShowHistory(false)
 		setShowAccount(false)
+		setShowFeedback(false)
 		setShowWorktrees(false)
 		setShowMarketplace(true)
 	}, [closeMcpView])
@@ -207,6 +225,7 @@ export const ExtensionStateContextProvider: React.FC<{
 			setShowHistory(false)
 			closeMcpView()
 			setShowAccount(false)
+			setShowFeedback(false)
 			setShowWorktrees(false)
 			setSettingsTargetSection(targetSection)
 			setSettingsInitialModelTab(undefined)
@@ -221,6 +240,7 @@ export const ExtensionStateContextProvider: React.FC<{
 			setShowHistory(false)
 			closeMcpView()
 			setShowAccount(false)
+			setShowFeedback(false)
 			setShowWorktrees(false)
 			setSettingsTargetSection(opts.targetSection)
 			setSettingsInitialModelTab(opts.initialModelTab)
@@ -234,6 +254,7 @@ export const ExtensionStateContextProvider: React.FC<{
 		setShowSettings(false)
 		closeMcpView()
 		setShowAccount(false)
+		setShowFeedback(false)
 		setShowWorktrees(false)
 		setShowHistory(true)
 	}, [closeMarketplaceView, setShowSettings, closeMcpView, setShowAccount, setShowWorktrees, setShowHistory])
@@ -243,9 +264,24 @@ export const ExtensionStateContextProvider: React.FC<{
 		setShowSettings(false)
 		closeMcpView()
 		setShowHistory(false)
+		setShowFeedback(false)
 		setShowWorktrees(false)
 		setShowAccount(true)
 	}, [closeMarketplaceView, setShowSettings, closeMcpView, setShowHistory, setShowWorktrees, setShowAccount])
+
+	const navigateToFeedback = useCallback(
+		(mode: "list" | "new" = "list") => {
+			closeMarketplaceView()
+			setShowSettings(false)
+			closeMcpView()
+			setShowHistory(false)
+			setShowAccount(false)
+			setShowWorktrees(false)
+			setFeedbackInitialMode(mode)
+			setShowFeedback(true)
+		},
+		[closeMarketplaceView, closeMcpView],
+	)
 
 	const navigateToWorktrees = useCallback(() => {
 		closeMarketplaceView()
@@ -253,6 +289,7 @@ export const ExtensionStateContextProvider: React.FC<{
 		closeMcpView()
 		setShowHistory(false)
 		setShowAccount(false)
+		setShowFeedback(false)
 		setShowWorktrees(true)
 	}, [closeMarketplaceView, setShowSettings, closeMcpView, setShowHistory, setShowAccount, setShowWorktrees])
 
@@ -262,6 +299,7 @@ export const ExtensionStateContextProvider: React.FC<{
 		closeMcpView()
 		setShowHistory(false)
 		setShowAccount(false)
+		setShowFeedback(false)
 		setShowWorktrees(false)
 	}, [closeMarketplaceView, setShowSettings, closeMcpView, setShowHistory, setShowAccount, setShowWorktrees])
 
@@ -424,6 +462,7 @@ export const ExtensionStateContextProvider: React.FC<{
 	const historyButtonClickedSubscriptionRef = useRef<(() => void) | null>(null)
 	const chatButtonUnsubscribeRef = useRef<(() => void) | null>(null)
 	const accountButtonClickedSubscriptionRef = useRef<(() => void) | null>(null)
+	const feedbackOpenedSubscriptionRef = useRef<(() => void) | null>(null)
 	const settingsButtonClickedSubscriptionRef = useRef<(() => void) | null>(null)
 	const worktreesButtonClickedSubscriptionRef = useRef<(() => void) | null>(null)
 	const partialMessageUnsubscribeRef = useRef<(() => void) | null>(null)
@@ -748,6 +787,16 @@ export const ExtensionStateContextProvider: React.FC<{
 			},
 		})
 
+		feedbackOpenedSubscriptionRef.current = FeedbackServiceClient.subscribeToFeedbackOpened(EmptyRequest.create(), {
+			onResponse: (event) => {
+				navigateToFeedback(event.mode === "new" ? "new" : "list")
+			},
+			onError: (error: any) => {
+				console.error("Error in feedback opened subscription:", error)
+			},
+			onComplete: () => {},
+		})
+
 		// Fetch available terminal profiles on launch
 		StateServiceClient.getAvailableTerminalProfiles(EmptyRequest.create({}))
 			.then((response) => {
@@ -797,6 +846,10 @@ export const ExtensionStateContextProvider: React.FC<{
 			if (accountButtonClickedSubscriptionRef.current) {
 				accountButtonClickedSubscriptionRef.current()
 				accountButtonClickedSubscriptionRef.current = null
+			}
+			if (feedbackOpenedSubscriptionRef.current) {
+				feedbackOpenedSubscriptionRef.current()
+				feedbackOpenedSubscriptionRef.current = null
 			}
 			if (settingsButtonClickedSubscriptionRef.current) {
 				settingsButtonClickedSubscriptionRef.current()
@@ -936,6 +989,8 @@ export const ExtensionStateContextProvider: React.FC<{
 		settingsInitialModelTab,
 		showHistory,
 		showAccount,
+		showFeedback,
+		feedbackInitialMode,
 		showWorktrees,
 		showAnnouncement,
 		globalClineRulesToggles: state.globalClineRulesToggles || {},
@@ -956,6 +1011,7 @@ export const ExtensionStateContextProvider: React.FC<{
 		navigateToSettingsModelPicker,
 		navigateToHistory,
 		navigateToAccount,
+		navigateToFeedback,
 		navigateToWorktrees,
 		navigateToChat,
 
@@ -963,6 +1019,7 @@ export const ExtensionStateContextProvider: React.FC<{
 		hideSettings,
 		hideHistory,
 		hideAccount,
+		hideFeedback,
 		hideWorktrees,
 		hideAnnouncement,
 		closeMarketplaceView,

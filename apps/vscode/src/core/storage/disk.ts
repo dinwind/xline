@@ -1,4 +1,5 @@
 import { Anthropic } from "@anthropic-ai/sdk"
+import { type InstructionSystem, normalizeInstructionSystem } from "@cline/shared/storage"
 import { TaskMetadata } from "@core/context/context-tracking/ContextTrackerTypes"
 import { RemoteConfig } from "@shared/remote-config/schema"
 import { GlobalState, Settings } from "@shared/storage/state-keys"
@@ -7,6 +8,7 @@ import fs from "fs/promises"
 import os from "os"
 import * as path from "path"
 import { HostProvider } from "@/hosts/host-provider"
+import { AXLINE_MCP_SETTINGS_FILE_NAME, LEGACY_CLINE_MCP_SETTINGS_FILE_NAME, resolveStorageHomeDir } from "@/shared/axline-dir"
 import { Logger } from "@/shared/services/Logger"
 import { getDocumentsPath } from "./documents-path"
 import { StateManager } from "./StateManager"
@@ -25,7 +27,7 @@ export const GlobalFileNames = {
 	groqModels: "groq_models.json",
 	basetenModels: "baseten_models.json",
 	hicapModels: "hicap_models.json",
-	mcpSettings: "cline_mcp_settings.json",
+	mcpSettings: AXLINE_MCP_SETTINGS_FILE_NAME,
 	clineRules: ".clinerules",
 	workflows: ".clinerules/workflows",
 	hooksDir: ".clinerules/hooks",
@@ -43,21 +45,17 @@ export const GlobalFileNames = {
 	agentWorkflowsDir: ".agent/core/workflows",
 	agentSopDir: ".agent/project/sop",
 	agentSkillsDir: ".agent/skills",
+	/** Cokodo project-owned skills (lint skills-placement). */
+	agentProjectSkillsDir: ".agent/skills/_project",
 	taskMetadata: "task_metadata.json",
 	remoteConfig: (orgId: string) => `remote_config_${orgId}.json`,
 }
 
 /**
- * Returns the cross-platform path to the Cline home directory (~/.cline).
- * This works on macOS, Linux, and Windows:
- * - macOS: /Users/username/.cline
- * - Linux: /home/username/.cline
- * - Windows: C:\Users\username\.cline
- *
- * This is intended to eventually replace ~/Documents/Cline as the global config location.
+ * Returns the cross-platform path to the Axline home directory (~/.axline).
  */
 function getClineHomePath(): string {
-	return path.join(os.homedir(), ".cline")
+	return resolveStorageHomeDir()
 }
 
 export async function ensureTaskDirectoryExists(taskId: string): Promise<string> {
@@ -66,50 +64,50 @@ export async function ensureTaskDirectoryExists(taskId: string): Promise<string>
 
 export async function ensureRulesDirectoryExists(): Promise<string> {
 	const userDocumentsPath = await getDocumentsPath()
-	const clineRulesDir = path.join(userDocumentsPath, "Cline", "Rules")
+	const clineRulesDir = path.join(userDocumentsPath, "Axline", "Rules")
 	try {
 		await fs.mkdir(clineRulesDir, { recursive: true })
 	} catch (_error) {
-		return path.join(os.homedir(), "Documents", "Cline", "Rules") // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine because we will fail gracefully with a path that does not exist
+		return path.join(os.homedir(), "Documents", "Axline", "Rules") // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine because we will fail gracefully with a path that does not exist
 	}
 	return clineRulesDir
 }
 
 export async function ensureWorkflowsDirectoryExists(): Promise<string> {
 	const userDocumentsPath = await getDocumentsPath()
-	const clineWorkflowsDir = path.join(userDocumentsPath, "Cline", "Workflows")
+	const clineWorkflowsDir = path.join(userDocumentsPath, "Axline", "Workflows")
 	try {
 		await fs.mkdir(clineWorkflowsDir, { recursive: true })
 	} catch (_error) {
-		return path.join(os.homedir(), "Documents", "Cline", "Workflows") // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine because we will fail gracefully with a path that does not exist
+		return path.join(os.homedir(), "Documents", "Axline", "Workflows") // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine because we will fail gracefully with a path that does not exist
 	}
 	return clineWorkflowsDir
 }
 
 export async function ensureMcpServersDirectoryExists(): Promise<string> {
 	const userDocumentsPath = await getDocumentsPath()
-	const mcpServersDir = path.join(userDocumentsPath, "Cline", "MCP")
+	const mcpServersDir = path.join(userDocumentsPath, "Axline", "MCP")
 	try {
 		await fs.mkdir(mcpServersDir, { recursive: true })
 	} catch (_error) {
-		return path.join(os.homedir(), "Documents", "Cline", "MCP") // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine since this path is only ever used in the system prompt
+		return path.join(os.homedir(), "Documents", "Axline", "MCP") // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine since this path is only ever used in the system prompt
 	}
 	return mcpServersDir
 }
 
 export async function ensureHooksDirectoryExists(): Promise<string> {
 	const userDocumentsPath = await getDocumentsPath()
-	const clineHooksDir = path.join(userDocumentsPath, "Cline", "Hooks")
+	const clineHooksDir = path.join(userDocumentsPath, "Axline", "Hooks")
 	try {
 		await fs.mkdir(clineHooksDir, { recursive: true })
 	} catch (_error) {
-		return path.join(os.homedir(), "Documents", "Cline", "Hooks") // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine because we will fail gracefully with a path that does not exist
+		return path.join(os.homedir(), "Documents", "Axline", "Hooks") // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine because we will fail gracefully with a path that does not exist
 	}
 	return clineHooksDir
 }
 
 /**
- * Returns the global skills directory path (~/.cline/skills) without creating it.
+ * Returns the global skills directory path (~/.axline/skills) without creating it.
  */
 function getClineSkillsDirectoryPath(): string {
 	return path.join(getClineHomePath(), "skills")
@@ -120,14 +118,23 @@ function getAgentSkillsDirectoryPath(): string {
 }
 
 /**
- * Returns the global agent skills directory path (~/.agents/skills).
- * Creates the directory if it doesn't exist.
- * This is the opinionated location for new global skills.
+ * Returns the skills directory used when creating new skills.
+ * - Cokodo / both (workspace): `.agent/skills/_project` (project-owned; protocol lint)
+ * - Cline (workspace): `.agents/skills` (Agents Skills convention)
+ * - Global: `~/.agents/skills` (Agents Skills convention; cokodo protocol is project-scoped)
  */
-export async function ensureAgentSkillsDirectoryExists(options: { isGlobal: boolean; workspacePath?: string }): Promise<string> {
+export async function ensureAgentSkillsDirectoryExists(options: {
+	isGlobal: boolean
+	workspacePath?: string
+	instructionSystem?: InstructionSystem
+}): Promise<string> {
+	const system = normalizeInstructionSystem(options.instructionSystem)
 	const agentSkillsDir = options.isGlobal
 		? getAgentSkillsDirectoryPath()
-		: path.join(options.workspacePath ?? "", GlobalFileNames.agentsSkillsDir)
+		: path.join(
+				options.workspacePath ?? "",
+				system === "cline" ? GlobalFileNames.agentsSkillsDir : GlobalFileNames.agentProjectSkillsDir,
+			)
 	try {
 		await fs.mkdir(agentSkillsDir, { recursive: true })
 	} catch (_error) {
@@ -148,6 +155,24 @@ export async function ensureSettingsDirectoryExists(): Promise<string> {
  */
 export async function getMcpSettingsFilePath(settingsDirectoryPath: string): Promise<string> {
 	const mcpSettingsFilePath = path.join(settingsDirectoryPath, GlobalFileNames.mcpSettings)
+	const legacyMcpSettingsFilePath = path.join(settingsDirectoryPath, LEGACY_CLINE_MCP_SETTINGS_FILE_NAME)
+
+	if (await fileExistsAtPath(mcpSettingsFilePath)) {
+		return mcpSettingsFilePath
+	}
+
+	if (await fileExistsAtPath(legacyMcpSettingsFilePath)) {
+		try {
+			await fs.rename(legacyMcpSettingsFilePath, mcpSettingsFilePath)
+			return mcpSettingsFilePath
+		} catch (error) {
+			Logger.warn("[Disk] Failed to rename legacy MCP settings file; copying instead:", error)
+			await fs.copyFile(legacyMcpSettingsFilePath, mcpSettingsFilePath)
+			await fs.unlink(legacyMcpSettingsFilePath).catch(() => {})
+			return mcpSettingsFilePath
+		}
+	}
+
 	const tempPath = `${mcpSettingsFilePath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}`
 	try {
 		await fs.writeFile(tempPath, JSON.stringify({ mcpServers: {} }, null, 2), { encoding: "utf8", flag: "wx" })

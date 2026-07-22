@@ -1,6 +1,7 @@
 import { EmptyRequest, StringRequest } from "@shared/proto/cline/common"
 import { ShowMessageType } from "@shared/proto/host/window"
 import { HostProvider } from "@/hosts/host-provider"
+import { resolveAxlineDataDir } from "@/shared/axline-dir"
 import { Logger } from "@/shared/services/Logger"
 
 /**
@@ -79,13 +80,11 @@ async function captureBrowserUrl(url: string): Promise<void> {
 	const entry = { timestamp: Date.now(), url }
 	Logger.log(`[CaptureBrowser] Captured URL: ${url}`)
 
-	// Write to JSONL file in CLINE_DIR/data/
+	// Write to JSONL file in ~/.axline/data/
 	try {
 		const fs = await import("node:fs")
 		const path = await import("node:path")
-		const os = await import("node:os")
-		const clineDir = process.env.CLINE_DIR || path.join(os.homedir(), ".cline")
-		const dataDir = path.join(clineDir, "data")
+		const dataDir = resolveAxlineDataDir()
 		fs.mkdirSync(dataDir, { recursive: true })
 		const captureFile = path.join(dataDir, "debug-captured-urls.jsonl")
 		fs.appendFileSync(captureFile, JSON.stringify(entry) + "\n")

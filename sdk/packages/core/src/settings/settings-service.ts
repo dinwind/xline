@@ -184,14 +184,19 @@ async function withUserInstructionService<T>(
 	}
 	const workspaceRoot = resolveWorkspaceRoot(input);
 	const cwd = resolveCwd(input, workspaceRoot);
+	const instructionSystem = input.instructionSystem;
 	const service = createUserInstructionConfigService({
 		skills: {
 			workspacePath: workspaceRoot || undefined,
 			includePluginSkills: true,
 			cwd,
+			instructionSystem,
 		},
-		rules: { workspacePath: workspaceRoot || undefined },
-		workflows: { workspacePath: workspaceRoot || undefined },
+		rules: { workspacePath: workspaceRoot || undefined, instructionSystem },
+		workflows: {
+			workspacePath: workspaceRoot || undefined,
+			instructionSystem,
+		},
 	});
 	try {
 		await service.start();

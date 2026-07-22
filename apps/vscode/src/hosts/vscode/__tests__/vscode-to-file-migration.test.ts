@@ -84,7 +84,7 @@ describe("vscode-to-file-migration", () => {
 		originalMcpSettingsPath = process.env.CLINE_MCP_SETTINGS_PATH
 		tempDir = path.join(os.tmpdir(), `migration-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
 		fs.mkdirSync(tempDir, { recursive: true })
-		process.env.CLINE_MCP_SETTINGS_PATH = path.join(tempDir, "runtime-mcp-settings", "cline_mcp_settings.json")
+		process.env.CLINE_MCP_SETTINGS_PATH = path.join(tempDir, "runtime-mcp-settings", "axline_mcp_settings.json")
 
 		storageContext = createStorageContext({
 			clineDir: tempDir,
@@ -317,7 +317,7 @@ describe("vscode-to-file-migration", () => {
 
 			result.mcpServersAdded.should.equal(1)
 			fs.existsSync(sharedMcpSettingsPath()).should.be.true()
-			fs.existsSync(path.join(storageContext.dataDir, "settings", "cline_mcp_settings.json")).should.be.false()
+			fs.existsSync(path.join(storageContext.dataDir, "settings", "axline_mcp_settings.json")).should.be.false()
 			readSharedMcpSettings().mcpServers.overrideTarget.should.deepEqual({
 				transport: { type: "stdio", command: "node" },
 			})

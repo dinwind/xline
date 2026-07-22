@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises"
-import * as os from "node:os"
 import * as path from "node:path"
 import { prepareRemoteConfigCoreIntegration } from "@cline/core"
 import { Controller } from "@/sdk/SdkController"
+import { resolveAxlineDataDir } from "@/shared/axline-dir"
 import { Logger } from "@/shared/services/Logger"
 import type { ConfiguredAPIKeys } from "@/shared/storage/state-keys"
 import { SdkRemoteConfigControlPlane } from "./sdk-control-plane"
@@ -14,8 +14,7 @@ export interface RefreshSdkRemoteConfigOptions {
 }
 
 async function ensureGlobalRemoteConfigWorkspacePath(): Promise<string> {
-	const clineDir = process.env.CLINE_DIR || path.join(os.homedir(), ".cline")
-	const workspacePath = path.join(clineDir, "data", "remote-config-workspace")
+	const workspacePath = path.join(resolveAxlineDataDir(), "remote-config-workspace")
 	await fs.mkdir(workspacePath, { recursive: true })
 	return workspacePath
 }

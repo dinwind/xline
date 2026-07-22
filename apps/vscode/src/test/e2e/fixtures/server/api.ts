@@ -59,7 +59,7 @@ export const name = "cline"
 The change has been applied and saved to the file.`
 
 export const E2E_MOCK_API_RESPONSES = {
-	DEFAULT: "Hello! I'm a mock Cline API response.",
+	DEFAULT: "Hello! I'm a mock Axline API response.",
 	/** Assistant text streamed before the structured editor tool call. */
 	EDIT_REQUEST_LEAD_IN: `I'll replace "john" with "cline" in the test.ts file.`,
 	/** Turn-ending text streamed after the SDK reports the editor tool result. */

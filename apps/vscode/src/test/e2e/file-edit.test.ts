@@ -6,7 +6,7 @@ import { E2E_WORKSPACE_TYPES, e2e } from "./utils/helpers"
 // File edits are performed by the SDK's `editor` tool executor, which writes
 // the file directly (Node fs) after the tool call is approved. It does not
 // stream the edit through DiffViewProvider, so no diff editor tab (e.g.
-// "test.ts: Original ↔ Cline's Changes") opens. This test asserts the default
+// "test.ts: Original ↔ Axline's Changes") opens. This test asserts the default
 // auto-approval flow: ask row appears without manual approval buttons, the file
 // is modified on disk, and the turn-ending completion text appears.
 e2e.describe("File Edit Auto-Approval", () => {
@@ -35,7 +35,7 @@ e2e.describe("File Edit Auto-Approval", () => {
 
 				// File edits are auto-approved by default. The ask row appears with
 				// the file path, but no manual approval buttons are shown.
-				await sidebar.waitForSelector('span:has-text("Cline wants to edit this file:")')
+				await sidebar.waitForSelector('span:has-text("Axline wants to edit this file:")')
 				await expect(sidebar.getByText("test.ts").first()).toBeVisible()
 				await expect(sidebar.getByRole("button", { name: "Reject" })).not.toBeVisible()
 				await expect(sidebar.getByRole("button", { name: "Save", exact: true })).not.toBeVisible()

@@ -50,7 +50,7 @@ function buildWorkspaceMetadata(
 }
 
 /**
- * Options for building the Cline system prompt.
+ * Options for building the Axline system prompt.
  *
  * Extends WorkspaceContext so callers can spread an ExtensionContext.workspace
  * directly. `workspaceRoot` is accepted as an alias for `rootPath` to support
@@ -67,7 +67,7 @@ export interface ClineSystemPromptOptions
 	workspaceRoot?: string;
 	/** Per-request system prompt override */
 	overridePrompt?: string;
-	/** Provider ID — used to gate Cline-specific metadata injection */
+	/** Provider ID — used to gate Cline-provider metadata injection */
 	providerId?: string;
 }
 

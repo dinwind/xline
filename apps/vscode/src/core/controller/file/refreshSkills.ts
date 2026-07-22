@@ -1,4 +1,5 @@
 import { type CoreSettingsItem, createCoreSettingsService } from "@cline/core"
+import { normalizeInstructionSystem } from "@cline/shared/storage"
 import { parseRemoteSkillEntries } from "@core/context/instructions/user-instructions/skills"
 import { RefreshedSkills, SkillInfo } from "@shared/proto/cline/file"
 import { HostProvider } from "@/hosts/host-provider"
@@ -21,8 +22,10 @@ export async function refreshSkills(controller: Controller): Promise<RefreshedSk
 	const workspacePaths = await HostProvider.workspace.getWorkspacePaths({})
 	const primaryWorkspace = workspacePaths.paths[0]
 
+	const instructionSystem = normalizeInstructionSystem(controller.stateManager.getGlobalSettingsKey("instructionSystem"))
 	const settingsSnapshot = await createCoreSettingsService().list({
 		workspaceRoot: primaryWorkspace,
+		instructionSystem,
 	})
 	const globalSkills = settingsSnapshot.skills
 		.filter((skill) => skill.source === "global" || skill.source === "global-plugin")
