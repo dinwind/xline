@@ -2,7 +2,7 @@
 # Human-readable policy lives in `project/versioning.md`.
 
 schema_version = 1
-updated_at = "2026-07-22"
+updated_at = "2026-07-23"
 owner = "release-governance"
 
 [tracks.vscode]
@@ -10,13 +10,13 @@ enabled = true
 display_name = "Axline VS Code Extension"
 canonical_source = "apps/vscode/package.json"
 derived_sync = []
-current_release = "0.3.6"
-working_version = "0.3.6"
+current_release = "0.3.7"
+working_version = "0.3.7"
 status = "released"
-release_note = "docs/operations/vscode-release-note-0.3.6.md"
-tag = "vscode/v0.3.6"
-rollback_tag = "vscode/v0.3.5"
-rollback_note = "Rollback to 0.3.5 if 0.3.6 regresses."
+release_note = "docs/operations/vscode-release-note-0.3.7.md"
+tag = "vscode/v0.3.7"
+rollback_tag = "vscode/v0.3.6"
+rollback_note = "Rollback to 0.3.6 if 0.3.7 regresses."
 protocol = "3.3.0"
 compatibility = []
 scope_refs = [
