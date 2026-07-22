@@ -1,4 +1,4 @@
-import { detectInstructionSystemForWorkspace, hasCokodoAgentProtocol } from "@cline/shared/storage"
+import { COKODO_MCP_SERVER_NAME, detectInstructionSystemForWorkspace, hasCokodoAgentProtocol } from "@cline/shared/storage"
 import { refreshClineRulesToggles } from "@core/context/instructions/user-instructions/cline-rules"
 import { promptCokodoAgentInstallIfNeeded } from "@/core/cokodo/prompt-cokodo-agent-install"
 import type { Controller } from "@/core/controller"
@@ -19,7 +19,15 @@ export async function syncCokodoWorkspaceIntegration(controller: Controller, wor
 		Logger.log(`[Cokodo] Instruction system set to "${detectedInstructionSystem}" from workspace protocol`)
 	}
 
-	await ensureCokodoAgentMcpServer(workspacePath, () => controller.mcpHub!.getMcpSettingsFilePath())
+	const ensureResult = await ensureCokodoAgentMcpServer(workspacePath, () => controller.mcpHub!.getMcpSettingsFilePath())
+	if (ensureResult === "added" || ensureResult === "updated") {
+		try {
+			await controller.mcpHub?.reconcileMcpServersFromSettingsRPC()
+			Logger.log(`[Cokodo] Reconnected MCP servers after ${ensureResult} ${COKODO_MCP_SERVER_NAME} config`)
+		} catch (error) {
+			Logger.warn("[Cokodo] Failed to reconnect MCP servers after config sync:", error)
+		}
+	}
 
 	try {
 		await refreshClineRulesToggles(controller, workspacePath)

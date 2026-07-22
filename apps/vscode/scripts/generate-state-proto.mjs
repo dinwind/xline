@@ -23,7 +23,10 @@ const STATE_PROTO_PATH = "proto/cline/state.proto"
  * Handles camelCase (apiKey -> api_key) and hyphens (openai-codex -> openai_codex).
  */
 function toProtoFieldName(str) {
-	return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`).replace(/-/g, "_")
+	return str
+		.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+		.replace(/-/g, "_")
+		.replace(/\./g, "_")
 }
 
 // Fields that should use int64 instead of int32

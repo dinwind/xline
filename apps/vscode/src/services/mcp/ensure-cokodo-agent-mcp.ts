@@ -2,8 +2,8 @@ import {
 	COKODO_MCP_SERVER_NAME,
 	type CokodoMcpServerConfig,
 	hasCokodoAgentProtocol,
-	loadCokodoMcpServerEntry,
 	MCP_AUTO_APPROVE_ALL_TOOLS,
+	resolveCokodoMcpServerEntryForWorkspace,
 } from "@cline/shared/storage"
 import { updateMcpSettingsFile } from "@/services/mcp/settingsLock"
 import { Logger } from "@/shared/services/Logger"
@@ -45,7 +45,7 @@ export async function ensureCokodoAgentMcpServer(
 		return "skipped"
 	}
 
-	const serverEntry = loadCokodoMcpServerEntry(workspacePath)
+	const serverEntry = resolveCokodoMcpServerEntryForWorkspace(workspacePath)
 	if (!serverEntry) {
 		return "skipped"
 	}

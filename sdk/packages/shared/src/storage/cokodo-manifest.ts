@@ -48,6 +48,8 @@ export interface CokodoManifest {
 export interface CokodoMcpServerConfig {
 	command: string;
 	args?: string[];
+	cwd?: string;
+	env?: Record<string, string>;
 	disabled?: boolean;
 	autoApprove?: string[];
 }
@@ -252,6 +254,44 @@ export function getDefaultCokodoMcpServerEntry(): CokodoMcpServerConfig {
 	};
 }
 
+/**
+ * Resolve the cokodo MCP launch config for a workspace, injecting the absolute
+ * project root into shared-launcher args and COKODO_PROJECT_ROOT env (matches
+ * Cursor `.cursor/mcp.json` behavior).
+ */
+export function resolveCokodoMcpServerEntryForWorkspace(
+	workspacePath: string,
+): CokodoMcpServerConfig | null {
+	const base = loadCokodoMcpServerEntry(workspacePath);
+	if (!base) {
+		return null;
+	}
+
+	const args = [...(base.args ?? ["serve", "--shared-launcher"])];
+	const launcherIndex = args.indexOf("--shared-launcher");
+	if (launcherIndex >= 0) {
+		args.splice(launcherIndex + 1);
+		args.push(workspacePath);
+	} else {
+		args.push("--shared-launcher", workspacePath);
+	}
+
+	const autoApprove =
+		base.autoApprove === undefined || base.autoApprove.length === 0
+			? [MCP_AUTO_APPROVE_ALL_TOOLS]
+			: base.autoApprove;
+
+	return {
+		...base,
+		args,
+		env: {
+			...(base.env ?? {}),
+			COKODO_PROJECT_ROOT: workspacePath,
+		},
+		autoApprove,
+	};
+}
+
 function parseMcpServerEntry(value: unknown): CokodoMcpServerConfig | null {
 	if (typeof value !== "object" || value === null) {
 		return null;
@@ -275,6 +315,20 @@ function parseMcpServerEntry(value: unknown): CokodoMcpServerConfig | null {
 		parsed.autoApprove = entry.autoApprove.filter(
 			(item): item is string => typeof item === "string",
 		);
+	}
+	if (typeof entry.cwd === "string" && entry.cwd.trim()) {
+		parsed.cwd = entry.cwd;
+	}
+	if (typeof entry.env === "object" && entry.env !== null && !Array.isArray(entry.env)) {
+		const env: Record<string, string> = {};
+		for (const [key, value] of Object.entries(entry.env)) {
+			if (typeof value === "string") {
+				env[key] = value;
+			}
+		}
+		if (Object.keys(env).length > 0) {
+			parsed.env = env;
+		}
 	}
 	return parsed;
 }

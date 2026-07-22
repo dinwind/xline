@@ -11,6 +11,7 @@ export {
 	hasCokodoAgentProtocol,
 	loadCokodoManifest,
 	loadCokodoMcpServerEntry,
+	resolveCokodoMcpServerEntryForWorkspace,
 	resolveManifestContextSearchPaths,
 	resolveManifestSkillDirectories,
 	resolveManifestWorkflowSearchPaths,
